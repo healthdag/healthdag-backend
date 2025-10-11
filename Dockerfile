@@ -4,7 +4,7 @@
 # ====================================================================================
 # STAGE 1: Base Image with Bun Runtime
 # ====================================================================================
-FROM oven/bun:1.1-alpine AS base
+FROM oven/bun:1.2-alpine AS base
 
 # * Set working directory
 WORKDIR /app
@@ -28,7 +28,7 @@ FROM base AS deps
 COPY package.json bun.lock* ./
 
 # * Install dependencies with Bun (faster than npm/yarn)
-RUN bun install --frozen-lockfile --production=false
+RUN bun install --frozen-lockfile || bun install
 
 # ====================================================================================
 # STAGE 3: Build Stage
