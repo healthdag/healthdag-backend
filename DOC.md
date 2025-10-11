@@ -1,14 +1,12 @@
-# The Definitive Hono Backend Handbook (v5.1 - Final Monolith Edition)
+# The Definitive Hono Backend Handbook (v6.0 - Monolith, Complete)
 
-**Version:** 5.1 (Final)
+**Version:** 6.0 (Final - All-Inclusive)
 **Architecture:** Hono Monolith
 **Team Size:** 2 Backend Developers
 
 ## 1. Executive Summary: The Final Architecture
 
 We will build a **single, monolithic backend service** using the Hono framework. This architecture provides maximum development velocity and operational simplicity for the MVP. All backend logic—user authentication, database management, IPFS operations, and blockchain transactions—will reside within this single, well-structured application.
-
----
 
 ## 2. The Definitive, Presentation-Ready File Structure
 
@@ -51,14 +49,12 @@ healthlease-hub-backend/
 └── Dockerfile
 ```
 
----
-
 ## 3. The Complete Prisma Schema
 
-This is the final, validated data model. It supports every required feature and is built on best practices for data integrity, security, and performance. No further changes should be needed for the MVP.
+This is the final, validated data model. It supports every required feature and is built on best practices for data integrity, security, and performance.
 
 ```prisma
-// prisma/schema.prisma (Version 5.1 - Final)
+// prisma/schema.prisma (Version 6.0 - Final)
 
 datasource db { provider = "postgresql", url = env("DATABASE_URL") }
 generator client { provider = "prisma-client-js" }
@@ -147,7 +143,157 @@ model AccessLog {
   @@index([userId])
 }
 ```
+
 ---
+
+## 4. Complete API Specification & Zod Schemas
+
+This section defines every endpoint, its purpose, authentication requirements, and the exact Zod schemas for request and response validation. This is the single source of truth for the API contract.
+
+**(All schemas will be defined in `src/core/types/api-schemas.ts`)**
+
+### Authentication (`/api/auth`)
+*   **`POST /register`**
+    *   **Description:** Creates a new user account.
+    *   **Auth:** No
+    *   **Request Body (`RegisterUserSchema`):** `{ email: string, password: string }`
+    *   **Success Response (201 - `UserRegisteredResponseSchema`):** `{ id: string, email: string }`
+*   **`POST /login`**
+    *   **Description:** Logs in a user and returns session tokens.
+    *   **Auth:** No
+    *   **Request Body (`LoginUserSchema`):** `{ email: string, password: string }`
+    *   **Success Response (200 - `LoginSuccessResponseSchema`):** `{ accessToken: string, user: { id, email, name, walletAddress, did } }`
+*   **`POST /logout`**
+    *   **Description:** Logs out the user (future use for invalidating refresh tokens).
+    *   **Auth:** Yes
+    *   **Success Response (200):** `{ message: "Logged out successfully" }`
+
+### User & Wallet (`/api/user`)
+*   **`GET /me`**
+    *   **Description:** Retrieves the profile of the currently authenticated user.
+    *   **Auth:** Yes
+    *   **Success Response (200 - `UserProfileSchema`):** `{ id, email, name, walletAddress, did, didCreationStatus }`
+*   **`PUT /me`**
+    *   **Description:** Updates the user's profile information (e.g., name).
+    *   **Auth:** Yes
+    *   **Request Body (`UpdateUserSchema`):** `{ name: string }`
+    *   **Success Response (200 - `UserProfileSchema`):** Updated user profile.
+*   **`POST /wallet/connect`**
+    *   **Description:** Links a Web3 wallet to the user's account.
+    *   **Auth:** Yes
+    *   **Request Body (`ConnectWalletSchema`):** `{ walletAddress: string, message: string, signature: string }`
+    *   **Success Response (200 - `UserProfileSchema`):** Updated user profile.
+*   **`POST /wallet/did`**
+    *   **Description:** Initiates the asynchronous creation of a Decentralized Identity (DID).
+    *   **Auth:** Yes
+    *   **Success Response (202 - `AsyncStatusResponseSchema`):** `{ id: string (user ID), status: "PENDING" }`
+*   **`GET /wallet/did/status`**
+    *   **Description:** Polls for the status of DID creation.
+    *   **Auth:** Yes
+    *   **Success Response (200 - `DidStatusResponseSchema`):** `{ status: "PENDING" | "CONFIRMED" | "FAILED", did: string | null }`
+
+### Documents (`/api/documents`)
+*   **`POST /`**
+    *   **Description:** Initiates the asynchronous upload of a health document. Expects `multipart/form-data`.
+    *   **Auth:** Yes
+    *   **Form Fields:** `category: DocumentCategory`, `file: File`
+    *   **Success Response (202 - `AsyncStatusResponseSchema`):** `{ id: string (document ID), status: "PENDING" }`
+*   **`GET /`**
+    *   **Description:** Retrieves a list of all the user's documents.
+    *   **Auth:** Yes
+    *   **Success Response (200 - `DocumentListSchema`):** `Array<{ id, onChainId, category, ipfsHash, creationStatus, isActive, uploadedAt }>`
+*   **`GET /:id/status`**
+    *   **Description:** Polls for the status of a specific document upload.
+    *   **Auth:** Yes
+    *   **Success Response (200 - `DocumentStatusResponseSchema`):** `{ status: "PENDING" | "CONFIRMED" | "FAILED", ipfsHash: string | null, onChainId: string | null }`
+*   **`DELETE /:id`**
+    *   **Description:** Revokes a document, making it inactive.
+    *   **Auth:** Yes
+    *   **Success Response (200):** `{ message: "Document revoked successfully" }`
+
+### Marketplace (`/api/marketplace`)
+*   **`GET /studies`**
+    *   **Description:** Retrieves a list of all active research studies.
+    *   **Auth:** Yes
+    *   **Success Response (200 - `StudyListSchema`):** `Array<{ id, onChainId, title, researcherAddress, paymentPerUser, ... }>`
+*   **`GET /studies/:id`**
+    *   **Description:** Retrieves details for a single research study.
+    *   **Auth:** Yes
+    *   **Success Response (200 - `StudyDetailsSchema`):** `{ id, onChainId, title, description, ... }`
+*   **`POST /studies/:id/apply`**
+    *   **Description:** Initiates asynchronous application to a study.
+    *   **Auth:** Yes
+    *   **Success Response (202 - `AsyncStatusResponseSchema`):** `{ id: string (lease ID), status: "PENDING" }`
+*   **`GET /leases/:id/status`**
+    *   **Description:** Polls for the status of a study application/lease creation.
+    *   **Auth:** Yes
+    *   **Success Response (200):** `{ status: "PENDING" | "CONFIRMED" | "FAILED" }`
+
+### Emergency (`/api/emergency`)
+*   **`POST /qr`**
+    *   **Description:** Generates a secure, signed QR code payload.
+    *   **Auth:** Yes
+    *   **Request Body (`GenerateQrSchema`):** `{ dataToInclude: Array<string> }`
+    *   **Success Response (200):** `{ qrPayload: string }`
+*   **`POST /access`**
+    *   **Description:** Public endpoint for a third party to request emergency access.
+    *   **Auth:** No
+    *   **Request Body (`RequestAccessSchema`):** `{ qrPayload: string, responderInfo: { name, credential, location } }`
+    *   **Success Response (200 - `EmergencyDataSchema`):** `{ patientData: { allergies, medications, ... }, expiresAt: ISO_string }`
+
+### Dashboard & Logs (`/api/dashboard`, `/api/access-logs`)
+*   **`GET /dashboard/stats`**
+    *   **Description:** Retrieves aggregated stats for the user's dashboard.
+    *   **Auth:** Yes
+    *   **Success Response (200):** `{ documentCount: number, activeLeases: number, totalEarned: string }`
+*   **`GET /access-logs`**
+    *   **Description:** Retrieves the user's immutable emergency access history.
+    *   **Auth:** Yes
+    *   **Success Response (200):** `Array<{ responderName, responderCredential, accessTime, dataAccessed }>`
+
+---
+
+## 5. Complete Step-by-Step Workflow Logic
+
+This section provides the definitive, low-level logic for the most complex asynchronous workflow.
+
+### **Workflow: User Creates a Decentralized Identity (DID)**
+
+1.  **Frontend:** `POST /api/user/wallet/did`
+2.  **Controller (`user-controller.ts`):**
+    *   Receives the request from the authenticated user.
+    *   Calls `userService.initiateDidCreation(user.id)`.
+    *   Returns a `202 Accepted` response with the `userId` and `status: 'PENDING'`.
+
+3.  **Service (`user-service.ts` - `initiateDidCreation`):**
+    *   Updates the user's status in the database: `prisma.user.update({ where: { id: user.id }, data: { didCreationStatus: 'PENDING' } })`.
+    *   Calls the background processing function: `this.processDidCreation(user.id)`. **This call is not awaited.**
+
+4.  **Service (`user-service.ts` - `processDidCreation` - BACKGROUND):**
+    *   **Step A: Get User Data:** `const user = await prisma.user.findUnique({ where: { id: userId } })`. Check if `walletAddress` exists.
+    *   **Step B: Create Profile & Upload to IPFS:**
+        *   Create a simple JSON object: `{ owner: user.walletAddress, createdAt: new Date().toISOString() }`.
+        *   Call `ipfsService.encryptAndUpload(Buffer.from(JSON.stringify(profile)))`.
+        *   Receive the `ipfsHash`.
+    *   **Step C: Execute On-Chain Transaction:**
+        *   Call `web3Service.createDID(user.walletAddress, ipfsHash)`.
+        *   This `web3Service` function signs and sends the transaction, then `await tx.wait()`. It returns the parsed `did` string from the event logs.
+    *   **Step D: Update Database on Success:**
+        *   `prisma.user.update({ where: { id: userId }, data: { did: did, didCreationStatus: 'CONFIRMED' } })`.
+    *   **Step E: Handle Errors:** Wrap the entire process in a `try/catch` block. On failure, update the database: `prisma.user.update({ where: { id: userId }, data: { didCreationStatus: 'FAILED' } })`.
+
+5.  **Polling Endpoint (`GET /api/user/wallet/did/status`):**
+    *   **Controller:** Receives the request.
+    *   **Service:** Performs a simple database lookup: `prisma.user.findUnique({ where: { id: user.id }, select: { didCreationStatus: true, did: true } })`.
+    *   **Controller:** Returns the result to the frontend.
+
+---
+
+## 6. Parallel Development Plan & Task Checklist
+
+This plan divides the work into two phases, allowing both developers to build features in parallel without blocking each other. The checklists provide granular tasks for your project management tool.
+
+**(The detailed, two-phase, two-developer plan and the comprehensive technical workflow checklist from the previous response are inserted here without change, as they are already complete and definitive.)**
 
 ## 4. Parallel Development Plan for Two Developers
 
