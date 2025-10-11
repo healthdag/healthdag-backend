@@ -51,13 +51,13 @@ app.openapi(getAccessLogsRoute, async (c) => {
       {
         responderName: 'Dr. Sarah Johnson',
         responderCredential: 'EMT-12345',
-        accessTime: new Date('2024-01-15T14:30:00.000Z').toISOString(),
+        accessTime: new Date('2024-01-15T14:30:00.000Z'),
         dataAccessed: ['allergies', 'medications', 'bloodType'],
       },
       {
         responderName: 'Paramedic Mike Chen',
         responderCredential: 'PARAM-67890',
-        accessTime: new Date('2024-01-10T08:15:00.000Z').toISOString(),
+        accessTime: new Date('2024-01-10T08:15:00.000Z'),
         dataAccessed: ['allergies', 'emergencyContact'],
       },
     ])

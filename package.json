@@ -28,7 +28,7 @@
         "@hono/swagger-ui": "^0.2.2",
         "@hono/zod-openapi": "^0.11.0",
         "@hono/zod-validator": "^0.2.2",
-        "@pinata/sdk": "^2.1.0",
+        "pinata": "^1.0.0",
         "@prisma/client": "^5.14.0",
         "@scalar/hono-api-reference": "^0.9.21",
         "bcrypt": "^5.1.1",

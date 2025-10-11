@@ -138,7 +138,6 @@ app.openapi(getDocumentsRoute, async (c) => {
         isActive: true,
         creationStatus: 'CONFIRMED',
         uploadedAt: new Date('2024-01-01T00:00:00.000Z'),
-        userId: 'user_123',
       },
       {
         id: 'doc_456',
@@ -148,7 +147,6 @@ app.openapi(getDocumentsRoute, async (c) => {
         isActive: true,
         creationStatus: 'CONFIRMED',
         uploadedAt: new Date('2024-01-02T00:00:00.000Z'),
-        userId: 'user_123',
       },
     ])
     

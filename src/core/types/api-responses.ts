@@ -189,6 +189,15 @@ export const apiResponseMap = {
     }).describe('Aggregated statistics for the user\'s dashboard.'),
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
   },
+  'GET /api/dashboard/activity': {
+    200: z.array(z.object({
+      id: z.string().cuid(),
+      type: z.string(),
+      description: z.string(),
+      timestamp: z.string().datetime(),
+    })).describe('A list of recent user activities.'),
+    401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+  },
   'GET /api/access-logs': {
     200: z.array(z.object({
       responderName: z.string(),
