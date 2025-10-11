@@ -25,7 +25,7 @@ Our stack is chosen for performance, type-safety, and a superior developer exper
 | **API Docs** | **`@hono/zod-openapi`** | - | Automatically generates OpenAPI 3.0 (Swagger) documentation from our existing Zod validation schemas. This ensures our docs are always in sync with the code. |
 | **Web3 Library** | **Ethers.js** | v6.x | The most mature and widely-used library for interacting with EVM-compatible blockchains. Provides a clean, stable API for contract calls and event listening. |
 | **Authentication** | **JWT + bcrypt** | - | Standard, secure approach. Short-lived JWTs for stateless authentication, with `bcrypt` for industry-standard password hashing. |
-| **IPFS Client** | **Pinata SDK** | - | Provides a simple API for pinning files to IPFS, ensuring data persistence. |
+| **IPFS Client** | **Pinata SDK v2** | v1.x | Provides a simple API for pinning files to IPFS, ensuring data persistence. Uses JWT-based authentication. |
 
 ### Required Libraries (`package.json`)
 
@@ -34,7 +34,7 @@ Our stack is chosen for performance, type-safety, and a superior developer exper
   "dependencies": {
     "@hono/node-server": "^1.11.1",
     "@hono/zod-openapi": "^0.11.0",
-    "@pinata/sdk": "^2.1.0",
+    "pinata": "^1.0.0",
     "@prisma/client": "^5.14.0",
     "bcrypt": "^5.1.1",
     "dotenv": "^16.4.5",
@@ -81,7 +81,7 @@ Follow these steps to get a development environment running.
 
 3.  **Setup Environment Variables:**
     *   Copy the example environment file: `cp .env.example .env`
-    *   Fill in the values in the `.env` file. You will need to generate a `JWT_SECRET` and get a `PINATA_JWT`. The rest can be default local values.
+    *   Fill in the values in the `.env` file. You will need to generate a `JWT_SECRET` and get a `PINATA_JWT` and `PINATA_GATEWAY`. The rest can be default local values.
 
 4.  **Start Local Database:**
     *   Ensure Docker is running.
@@ -236,7 +236,7 @@ These are the step-by-step logic flows for the most critical features.
 2.  **Authorization:** JWT middleware verifies the user.
 3.  **Service Call:** The route handler calls `documentService.uploadDocument(userId, file, category)`.
 4.  **Encryption:** `documentService` derives a deterministic encryption key from a user secret (e.g., a signature). It reads the file into a buffer and encrypts it with AES-256.
-5.  **IPFS Upload:** The encrypted buffer is passed to `ipfsService.upload`, which pins it to Pinata and returns the IPFS CID (hash).
+5.  **IPFS Upload:** The encrypted buffer is passed to `ipfsService.uploadToIpfs`, which pins it to Pinata using the v2 SDK and returns the IPFS CID (hash).
 6.  **Blockchain Transaction:** `documentService` calls `web3Service.addDocument(userDID, ipfsHash, category)`, which executes the `addDocument` function on the `DIDRegistry` smart contract.
 7.  **Database Record:** The service creates a new record in the `documents` table using Prisma, storing the `userId`, `ipfsHash`, `category`, and the `onChainId` returned from the transaction.
 8.  **Response:** The API returns a `201 Created` with the metadata of the newly created document record.
@@ -247,7 +247,7 @@ These are the step-by-step logic flows for the most critical features.
 2.  **Verification:** The `emergencyService` is called. It first verifies the signature within the `qrPayload` to securely identify the patient's DID. This proves the QR code is authentic.
 3.  **Blockchain Transaction:** If the signature is valid, the service calls `web3Service.grantEmergencyAccess(...)`, which executes the `grantAccess` function on the `EmergencyAccess` contract. This creates an immutable, time-limited access grant on-chain.
 4.  **Data Retrieval:** The service queries the Prisma `documents` table to find the CIDs of the patient's critical health documents.
-5.  **IPFS Download & Decryption:** It iterates through the CIDs, downloads the encrypted files from IPFS via `ipfsService`, and decrypts them using the patient's re-derived key.
+5.  **IPFS Download & Decryption:** It iterates through the CIDs, downloads the encrypted files from IPFS via `ipfsService.getIpfsUrl`, and decrypts them using the patient's re-derived key.
 6.  **Data Parsing:** The service parses the decrypted file contents (e.g., JSON, text) to extract the relevant information (blood type, allergies, etc.).
 7.  **Logging & Response:** It creates a record in the `access_logs` table via Prisma and returns the structured, decrypted patient data along with the grant's expiration time.
 

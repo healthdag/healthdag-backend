@@ -1,7 +1,7 @@
 import { OpenAPIHono } from '@hono/zod-openapi'
 import { logger } from 'hono/logger'
 import { cors } from 'hono/cors'
-import { serve } from '@hono/node-server'
+// Using Bun's built-in server instead of @hono/node-server
 import { swaggerUI } from '@hono/swagger-ui'
 import { Scalar } from '@scalar/hono-api-reference'
 import { createApiResponse } from './core/services/response-factory'
@@ -104,34 +104,11 @@ const port = process.env.PORT || 3000
 
 console.log(`🚀 HealthLease server starting on port ${port}`)
 
-// Start the server
-const server = serve({
-  fetch: app.fetch,
-  port: Number(port),
-})
-
 console.log(`✅ HealthLease server running on http://localhost:${port}`)
 console.log(`📚 API Documentation: http://localhost:${port}/ui`)
 
-// Graceful shutdown
-process.on('SIGINT', () => {
-  console.log('\n🛑 Shutting down server...')
-  server.close()
-  process.exit(0)
-})
-
-process.on('SIGTERM', () => {
-  console.log('\n🛑 Shutting down server...')
-  server.close((err) => {
-    if (err) {
-      console.error(err)
-      process.exit(1)
-    }
-    process.exit(0)
-  })
-})
-
+// * Export the Hono app for Bun's built-in server
 export default {
-  port,
+  port: Number(port),
   fetch: app.fetch,
 }
