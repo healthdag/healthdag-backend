@@ -50,6 +50,10 @@ app.doc('/doc', {
       url: 'http://localhost:3000',
       description: 'Development server',
     },
+    {
+      url: 'https://healthlease-api.goremote.africa',
+      description: 'Production documentation server',
+    },
   ],
 })
 
