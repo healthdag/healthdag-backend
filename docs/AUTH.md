@@ -1,9 +1,3 @@
-Of course. Authentication is the most critical security component of the application. Having a crystal-clear, exhaustive definition of its requirements and workflows is non-negotiable.
-
-This document provides the complete and definitive specification for all authentication-related workflows.
-
----
-
 ## Definitive Authentication Requirements & Workflows
 
 This document outlines every requirement, endpoint, and step-by-step workflow for user authentication, session management, and authorization in the HealthLease Hub backend.
