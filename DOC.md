@@ -194,3 +194,104 @@ This is the **non-negotiable pattern** for all on-chain write operations:
 4.  **Service (Background):** The controller triggers the long-running process (e.g., `processUpload`) without `await`. This background task `await`s the transaction confirmation.
 5.  **Service (Background):** Upon completion, it updates the database record to `CONFIRMED` or `FAILED`.
 6.  **Frontend:** Polls a `.../status` endpoint to get the final result.
+
+
+
+## The Definitive Backend Features & Workflows Checklist
+
+This checklist is divided into two parts:
+1.  **Feature Checklist:** A high-level list of all user-facing features the backend must support. This is for product alignment and release planning.
+2.  **Technical Workflow Checklist:** A detailed, granular breakdown of the technical tasks required to implement those features. This is the implementation guide for developers.
+
+---
+
+### Part 1: High-Level Feature Checklist (for Product & QA)
+
+This ensures we have built everything required for the MVP from a user's perspective.
+
+| Feature Area | Feature ID | Description | Status |
+| :--- | :--- | :--- | :--- |
+| **User Authentication** | `AUTH-01` | User can register a new account with email and password. | `[ ]` |
+| | `AUTH-02` | User can log in with their credentials to receive a session token. | `[ ]` |
+| | `AUTH-03` | User can log out, invalidating their session. | `[ ]` |
+| | `AUTH-04` | Application can verify a user's session and retrieve their profile. | `[ ]` |
+| **Digital Identity** | `DID-01` | A logged-in user can connect their MetaMask (or other Web3) wallet. | `[ ]` |
+| | `DID-02` | A user with a connected wallet can create their Decentralized Identity (DID). | `[ ]` |
+| | `DID-03` | The application frontend can poll for the status of DID creation. | `[ ]` |
+| **Document Management**| `DOC-01` | User can upload a health document (PDF, JPG, PNG) with a specific category. | `[ ]` |
+| | `DOC-02` | The application frontend can poll for the status of a document upload. | `[ ]` |
+| | `DOC-03` | User can view a list of all their uploaded documents with their status. | `[ ]` |
+| | `DOC-04` | User can revoke an existing document, making it inactive. | `[ ]` |
+| **Emergency Access** | `EM-01` | User can generate a secure Emergency QR code containing selected data categories. | `[ ]` |
+| | `EM-02` | A third party (e.g., paramedic) can scan the QR code and request access. | `[ ]` |
+| | `EM-03` | Access is granted on-chain for a time-limited duration (e.g., 4 hours). | `[ ]` |
+| | `EM-04` | The user can view an immutable log of who has accessed their emergency data. | `[ ]` |
+| **Data Marketplace** | `MKT-01` | User can browse a list of active research studies. | `[ ]` |
+| | `MKT-02` | User can view the detailed information for a single study. | `[ ]` |
+| | `MKT-03` | User can apply to participate in a study, providing one-click consent. | `[ ]` |
+| | `MKT-04` | Upon successful application, the user receives payment in BDAG tokens. | `[ ]` |
+| **Dashboard & Profile** | `DASH-01`| User can view a dashboard with key stats (doc count, leases, earnings). | `[ ]` |
+| | `DASH-02`| User can view their profile settings (name, email, connected wallet, DID). | `[ ]` |
+| | `DASH-03`| User can update their basic profile information (e.g., name). | `[ ]` |
+
+---
+
+### Part 2: Detailed Technical Workflow Checklist (for Developers)
+
+This breaks down the implementation into logical, dependent tasks. It is organized according to the parallel development plan.
+
+#### **Phase 1: Foundations & Read-Only Features**
+
+**Developer A: Core Services & Identity**
+
+*   **`CORE-01` [ ] Project Setup:** Initialize Hono project, install all dependencies, set up `tsconfig.json` and ESLint/Prettier.
+*   **`CORE-02` [ ] Prisma Setup:** Finalize `schema.prisma`, generate the first migration, and implement the singleton `PrismaService`.
+*   **`CORE-03` [ ] Web3 Service (Read-Only):** Implement `Web3Service` to load all 5 smart contracts using Ethers.js. Implement all necessary `view` (read-only) functions (e.g., `getStudyDetails`, `checkAccessGrant`).
+*   **`CORE-04` [ ] Middleware:** Implement the JWT `auth-middleware` and the Zod `validation-middleware`.
+*   **`AUTH-05` [ ] Authentication Service & Endpoints:** Implement the `AuthService`, `AuthController`, and `AuthRoutes` for `register`, `login`, `logout`, and the `/api/users/me` endpoint.
+*   **`USER-01` [ ] Wallet Connection Workflow:** Implement the `UserService` and endpoint for `POST /api/wallet/connect`, including signature verification logic.
+*   **`USER-02` [ ] DID Creation Orchestration:**
+    *   `[ ]` Implement the `POST /api/wallet/create-did` endpoint.
+    *   `[ ]` Implement the "accept and process in background" pattern: create a `PENDING` record, respond `202`, and trigger the background processing.
+    *   `[ ]` Implement the background processing logic in `UserService` which calls `IpfsService` and `Web3Service`.
+    *   `[ ]` Implement the status polling endpoint `GET /api/wallet/did/status`.
+
+**Developer B: Data & Read APIs**
+
+*   **`CORE-05` [ ] IPFS Service:** Implement the `IpfsService` (can be done in parallel). It should only have a placeholder `encryptAndUpload` method for now.
+*   **`MKT-05` [ ] Marketplace Service (Read-Only):** Implement the `MarketplaceService` methods that read from the `Study` table in the database cache.
+*   **`MKT-06` [ ] Marketplace Endpoints (Read-Only):** Implement the `MarketplaceController` and `MarketplaceRoutes` for `GET /api/studies` and `GET /api/studies/:studyId`.
+*   **`DASH-04` [ ] Dashboard Service:** Implement the `DashboardService` with the Prisma query to aggregate user statistics (`_count` for documents/leases, `sum` for earnings).
+*   **`DASH-05` [ ] Dashboard Endpoint:** Implement the `DashboardController` and `DashboardRoutes` for `GET /api/dashboard/stats`.
+*   **`DOC-05` [ ] Document Endpoint (Read-Only):** Implement the `DocumentController` and `DocumentRoutes` for `GET /api/documents`.
+
+#### **Phase 2: Transactional Layer & Write Features**
+
+**Developer A: Core Transactions**
+
+*   **`CORE-06` [ ] Web3 Service (Write):** Implement all state-changing functions in `Web3Service` that send transactions (e.g., `createDID`, `addDocument`, `applyToStudy`). Ensure they `await tx.wait()` and return the parsed receipt.
+*   **`DOC-06` [ ] Document Upload Workflow:**
+    *   `[ ]` Implement the full logic in `IpfsService` for encrypting and uploading files.
+    *   `[ ]` Implement the `POST /api/documents` endpoint using the "accept and process" pattern.
+    *   `[ ]` Implement the background processing logic in `DocumentService`.
+    *   `[ ]` Implement the status polling endpoint `GET /api/documents/:docId/status`.
+*   **`DOC-07` [ ] Document Revoke Workflow:** Implement the `DELETE /api/documents/:docId` endpoint and the corresponding `DocumentService` and `Web3Service` logic.
+*   **`MKT-07` [ ] Study Application Workflow:**
+    *   `[ ]` Implement the `POST /api/studies/:studyId/apply` endpoint using the "accept and process" pattern.
+    *   `[ ]` Implement the background processing logic in `MarketplaceService`, which orchestrates calls to `DataLease` and `PaymentProcessor` contracts via `Web3Service`.
+
+**Developer B: User-Centric Transactions**
+
+*   **`EM-05` [ ] Emergency QR Generation:** Implement the `EmergencyService` logic and the `POST /api/emergency/qr` endpoint. This involves creating a signed payload, but not an on-chain transaction.
+*   **`EM-06` [ ] Emergency Access Workflow:**
+    *   `[ ]` Implement the public `POST /api/emergency/access` endpoint.
+    *   `[ ]` Implement the logic in `EmergencyService` to:
+        *   Verify the QR signature.
+        *   Call `Web3Service` to execute the `grantAccess` on-chain transaction.
+        *   Create the `AccessLog` record in the database.
+        *   Orchestrate fetching, decrypting, and returning the patient data.
+*   **`LOG-01` [ ] Access Log Endpoint:** Implement the `GET /api/access-logs` endpoint, which reads from the `AccessLog` table.
+*   **`API-DOC` [ ] Finalize API Documentation:** Review all Zod schemas in `api-schemas.ts` and ensure the auto-generated OpenAPI documentation at `/ui` is complete and accurate for all endpoints.
+*   **`TEST-01` [ ] Unit Testing:** Write unit tests for all service methods to ensure business logic is correct in isolation.
+
+This comprehensive checklist provides a clear path to completion, allows both developers to work independently on non-blocking tasks, and ensures that every single requirement from the architectural plan is implemented and verified.

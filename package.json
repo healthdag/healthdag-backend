@@ -3,11 +3,11 @@
     "version": "1.0.0",
     "description": "HealthLease application built with Hono",
     "type": "module",
-    "main": "src/index.ts",
+    "main": "src/app.ts",
     "scripts": {
-        "dev": "bun run --hot src/index.ts",
-        "start": "bun run src/index.ts",
-        "build": "bun build src/index.ts --outdir dist --target bun",
+        "dev": "bun run --hot src/app.ts",
+        "start": "bun run src/app.ts",
+        "build": "bun build src/app.ts --outdir dist --target bun",
         "type-check": "tsc --noEmit"
     },
     "keywords": [
