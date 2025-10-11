@@ -1,443 +1,352 @@
-# The Definitive Hono Backend Handbook (v6.0 - Monolith, Complete)
+# HealthLease Hub MVP: The Complete Backend Developer's Handbook
 
-**Version:** 6.0 (Final - All-Inclusive)
-**Architecture:** Hono Monolith
-**Team Size:** 2 Backend Developers
+**Version:** 1.0  
+**Date:** October 10, 2025  
+**Maintainer:** Backend Team Lead
 
-## 1. Executive Summary: The Final Architecture
+## 1. Introduction: Your Mission
 
-We will build a **single, monolithic backend service** using the Hono framework. This architecture provides maximum development velocity and operational simplicity for the MVP. All backend logic—user authentication, database management, IPFS operations, and blockchain transactions—will reside within this single, well-structured application.
+Welcome to the HealthLease Hub backend. Your mission is to build the central nervous system of the entire platform. You are the orchestrator that connects the user-facing **Frontend** to the decentralized **Smart Contracts** and the secure **IPFS Storage**.
 
-## 2. The Definitive, Presentation-Ready File Structure
-
-This structure is final. It organizes the entire application by `core` foundational services and `features`, ensuring the codebase is clean, scalable, and easy for both developers to navigate.
-
-```
-healthlease-hub-backend/
-├── src/
-│   ├── core/
-│   │   ├── middleware/
-│   │   │   ├── auth-middleware.ts
-│   │   │   └── validation-middleware.ts
-│   │   ├── services/
-│   │   │   ├── ipfs-service.ts
-│   │   │   ├── prisma-service.ts
-│   │   │   └── web3-service.ts
-│   │   └── types/
-│   │       ├── api-schemas.ts
-│   │       └── domain-types.ts
-│   ├── features/
-│   │   ├── auth/
-│   │   │   ├── auth-controller.ts
-│   │   │   ├── auth-routes.ts
-│   │   │   └── auth-service.ts
-│   │   ├── dashboard/
-│   │   │   └── (controller, routes, service)
-│   │   ├── documents/
-│   │   │   └── (controller, routes, service)
-│   │   ├── emergency/
-│   │   │   └── (controller, routes, service)
-│   │   ├── marketplace/
-│   │   │   └── (controller, routes, service)
-│   │   └── user/
-│   │       └── (controller, routes, service)
-│   └── app.ts
-├── prisma/
-│   └── schema.prisma
-├── package.json
-├── tsconfig.json
-└── Dockerfile
-```
-
-## 3. The Complete Prisma Schema
-
-This is the final, validated data model. It supports every required feature and is built on best practices for data integrity, security, and performance.
-
-```prisma
-// prisma/schema.prisma (Version 6.0 - Final)
-
-datasource db { provider = "postgresql", url = env("DATABASE_URL") }
-generator client { provider = "prisma-client-js" }
-
-// --- ENUMS ---
-enum DocumentCategory { LAB_RESULT, IMAGING, PRESCRIPTION, VISIT_NOTES, PROFILE }
-enum StudyStatus { Active, Paused, Closed, Cancelled }
-enum LeaseStatus { Pending, Active, Expired, Revoked, Completed }
-enum DidCreationStatus { NONE, PENDING, CONFIRMED, FAILED }
-enum RecordCreationStatus { PENDING, CONFIRMED, FAILED }
-
-// --- MODELS ---
-model User {
-  id                String            @id @default(cuid())
-  email             String            @unique
-  name              String?
-  password          String
-  walletAddress     String?           @unique
-  did               String?           @unique
-  didCreationStatus DidCreationStatus @default(NONE)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  documents         Document[]
-  leases            Lease[]
-  accessLogs        AccessLog[]
-}
-
-model Document {
-  id             String               @id @default(cuid())
-  onChainId      BigInt?
-  ipfsHash       String?
-  category       DocumentCategory
-  isActive       Boolean              @default(true)
-  creationStatus RecordCreationStatus @default(PENDING)
-  uploadedAt     DateTime             @default(now())
-  userId         String
-  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@index([userId])
-}
-
-model Study {
-  id                   String      @id @default(cuid())
-  onChainId            BigInt      @unique
-  researcherAddress    String
-  title                String
-  description          String      @db.Text
-  metadataHash         String
-  irbApprovalHash      String
-  paymentPerUser       Decimal     @db.Decimal(20, 8)
-  participantsNeeded   Int
-  participantsEnrolled Int         @default(0)
-  status               StudyStatus @default(Active)
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
-  leases               Lease[]
-}
-
-model Lease {
-  id            String      @id @default(cuid())
-  onChainId     BigInt      @unique
-  paymentAmount Decimal     @db.Decimal(20, 8)
-  startTime     DateTime
-  endTime       DateTime
-  status        LeaseStatus @default(Pending)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  userId        String
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  studyId       String
-  study         Study       @relation(fields: [studyId], references: [id], onDelete: Cascade)
-  @@index([userId])
-  @@index([studyId])
-}
-
-model AccessLog {
-  id                  String   @id @default(cuid())
-  onChainGrantId      BigInt
-  responderName       String
-  responderCredential String
-  responderLocation   String
-  dataAccessed        String[]
-  accessTime          DateTime @default(now())
-  grantExpiresAt      DateTime
-  userId              String
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@index([userId])
-}
-```
+This document is your complete guide. It contains everything you need to build, test, and prepare the backend for deployment.
 
 ---
 
-## 4. Complete API Specification & Zod Schemas
+## 2. Core Architecture & Technology Stack
 
-This section defines every endpoint, its purpose, authentication requirements, and the exact Zod schemas for request and response validation. This is the single source of truth for the API contract.
+Our stack is chosen for performance, type-safety, and a superior developer experience.
 
-**(All schemas will be defined in `src/core/types/api-schemas.ts`)**
-
-### Authentication (`/api/auth`)
-*   **`POST /register`**
-    *   **Description:** Creates a new user account.
-    *   **Auth:** No
-    *   **Request Body (`RegisterUserSchema`):** `{ email: string, password: string }`
-    *   **Success Response (201 - `UserRegisteredResponseSchema`):** `{ id: string, email: string }`
-*   **`POST /login`**
-    *   **Description:** Logs in a user and returns session tokens.
-    *   **Auth:** No
-    *   **Request Body (`LoginUserSchema`):** `{ email: string, password: string }`
-    *   **Success Response (200 - `LoginSuccessResponseSchema`):** `{ accessToken: string, user: { id, email, name, walletAddress, did } }`
-*   **`POST /logout`**
-    *   **Description:** Logs out the user (future use for invalidating refresh tokens).
-    *   **Auth:** Yes
-    *   **Success Response (200):** `{ message: "Logged out successfully" }`
-
-### User & Wallet (`/api/user`)
-*   **`GET /me`**
-    *   **Description:** Retrieves the profile of the currently authenticated user.
-    *   **Auth:** Yes
-    *   **Success Response (200 - `UserProfileSchema`):** `{ id, email, name, walletAddress, did, didCreationStatus }`
-*   **`PUT /me`**
-    *   **Description:** Updates the user's profile information (e.g., name).
-    *   **Auth:** Yes
-    *   **Request Body (`UpdateUserSchema`):** `{ name: string }`
-    *   **Success Response (200 - `UserProfileSchema`):** Updated user profile.
-*   **`POST /wallet/connect`**
-    *   **Description:** Links a Web3 wallet to the user's account.
-    *   **Auth:** Yes
-    *   **Request Body (`ConnectWalletSchema`):** `{ walletAddress: string, message: string, signature: string }`
-    *   **Success Response (200 - `UserProfileSchema`):** Updated user profile.
-*   **`POST /wallet/did`**
-    *   **Description:** Initiates the asynchronous creation of a Decentralized Identity (DID).
-    *   **Auth:** Yes
-    *   **Success Response (202 - `AsyncStatusResponseSchema`):** `{ id: string (user ID), status: "PENDING" }`
-*   **`GET /wallet/did/status`**
-    *   **Description:** Polls for the status of DID creation.
-    *   **Auth:** Yes
-    *   **Success Response (200 - `DidStatusResponseSchema`):** `{ status: "PENDING" | "CONFIRMED" | "FAILED", did: string | null }`
-
-### Documents (`/api/documents`)
-*   **`POST /`**
-    *   **Description:** Initiates the asynchronous upload of a health document. Expects `multipart/form-data`.
-    *   **Auth:** Yes
-    *   **Form Fields:** `category: DocumentCategory`, `file: File`
-    *   **Success Response (202 - `AsyncStatusResponseSchema`):** `{ id: string (document ID), status: "PENDING" }`
-*   **`GET /`**
-    *   **Description:** Retrieves a list of all the user's documents.
-    *   **Auth:** Yes
-    *   **Success Response (200 - `DocumentListSchema`):** `Array<{ id, onChainId, category, ipfsHash, creationStatus, isActive, uploadedAt }>`
-*   **`GET /:id/status`**
-    *   **Description:** Polls for the status of a specific document upload.
-    *   **Auth:** Yes
-    *   **Success Response (200 - `DocumentStatusResponseSchema`):** `{ status: "PENDING" | "CONFIRMED" | "FAILED", ipfsHash: string | null, onChainId: string | null }`
-*   **`DELETE /:id`**
-    *   **Description:** Revokes a document, making it inactive.
-    *   **Auth:** Yes
-    *   **Success Response (200):** `{ message: "Document revoked successfully" }`
-
-### Marketplace (`/api/marketplace`)
-*   **`GET /studies`**
-    *   **Description:** Retrieves a list of all active research studies.
-    *   **Auth:** Yes
-    *   **Success Response (200 - `StudyListSchema`):** `Array<{ id, onChainId, title, researcherAddress, paymentPerUser, ... }>`
-*   **`GET /studies/:id`**
-    *   **Description:** Retrieves details for a single research study.
-    *   **Auth:** Yes
-    *   **Success Response (200 - `StudyDetailsSchema`):** `{ id, onChainId, title, description, ... }`
-*   **`POST /studies/:id/apply`**
-    *   **Description:** Initiates asynchronous application to a study.
-    *   **Auth:** Yes
-    *   **Success Response (202 - `AsyncStatusResponseSchema`):** `{ id: string (lease ID), status: "PENDING" }`
-*   **`GET /leases/:id/status`**
-    *   **Description:** Polls for the status of a study application/lease creation.
-    *   **Auth:** Yes
-    *   **Success Response (200):** `{ status: "PENDING" | "CONFIRMED" | "FAILED" }`
-
-### Emergency (`/api/emergency`)
-*   **`POST /qr`**
-    *   **Description:** Generates a secure, signed QR code payload.
-    *   **Auth:** Yes
-    *   **Request Body (`GenerateQrSchema`):** `{ dataToInclude: Array<string> }`
-    *   **Success Response (200):** `{ qrPayload: string }`
-*   **`POST /access`**
-    *   **Description:** Public endpoint for a third party to request emergency access.
-    *   **Auth:** No
-    *   **Request Body (`RequestAccessSchema`):** `{ qrPayload: string, responderInfo: { name, credential, location } }`
-    *   **Success Response (200 - `EmergencyDataSchema`):** `{ patientData: { allergies, medications, ... }, expiresAt: ISO_string }`
-
-### Dashboard & Logs (`/api/dashboard`, `/api/access-logs`)
-*   **`GET /dashboard/stats`**
-    *   **Description:** Retrieves aggregated stats for the user's dashboard.
-    *   **Auth:** Yes
-    *   **Success Response (200):** `{ documentCount: number, activeLeases: number, totalEarned: string }`
-*   **`GET /access-logs`**
-    *   **Description:** Retrieves the user's immutable emergency access history.
-    *   **Auth:** Yes
-    *   **Success Response (200):** `Array<{ responderName, responderCredential, accessTime, dataAccessed }>`
-
----
-
-## 5. Complete Step-by-Step Workflow Logic
-
-This section provides the definitive, low-level logic for the most complex asynchronous workflow.
-
-### **Workflow: User Creates a Decentralized Identity (DID)**
-
-1.  **Frontend:** `POST /api/user/wallet/did`
-2.  **Controller (`user-controller.ts`):**
-    *   Receives the request from the authenticated user.
-    *   Calls `userService.initiateDidCreation(user.id)`.
-    *   Returns a `202 Accepted` response with the `userId` and `status: 'PENDING'`.
-
-3.  **Service (`user-service.ts` - `initiateDidCreation`):**
-    *   Updates the user's status in the database: `prisma.user.update({ where: { id: user.id }, data: { didCreationStatus: 'PENDING' } })`.
-    *   Calls the background processing function: `this.processDidCreation(user.id)`. **This call is not awaited.**
-
-4.  **Service (`user-service.ts` - `processDidCreation` - BACKGROUND):**
-    *   **Step A: Get User Data:** `const user = await prisma.user.findUnique({ where: { id: userId } })`. Check if `walletAddress` exists.
-    *   **Step B: Create Profile & Upload to IPFS:**
-        *   Create a simple JSON object: `{ owner: user.walletAddress, createdAt: new Date().toISOString() }`.
-        *   Call `ipfsService.encryptAndUpload(Buffer.from(JSON.stringify(profile)))`.
-        *   Receive the `ipfsHash`.
-    *   **Step C: Execute On-Chain Transaction:**
-        *   Call `web3Service.createDID(user.walletAddress, ipfsHash)`.
-        *   This `web3Service` function signs and sends the transaction, then `await tx.wait()`. It returns the parsed `did` string from the event logs.
-    *   **Step D: Update Database on Success:**
-        *   `prisma.user.update({ where: { id: userId }, data: { did: did, didCreationStatus: 'CONFIRMED' } })`.
-    *   **Step E: Handle Errors:** Wrap the entire process in a `try/catch` block. On failure, update the database: `prisma.user.update({ where: { id: userId }, data: { didCreationStatus: 'FAILED' } })`.
-
-5.  **Polling Endpoint (`GET /api/user/wallet/did/status`):**
-    *   **Controller:** Receives the request.
-    *   **Service:** Performs a simple database lookup: `prisma.user.findUnique({ where: { id: user.id }, select: { didCreationStatus: true, did: true } })`.
-    *   **Controller:** Returns the result to the frontend.
-
----
-
-## 6. Parallel Development Plan & Task Checklist
-
-This plan divides the work into two phases, allowing both developers to build features in parallel without blocking each other. The checklists provide granular tasks for your project management tool.
-
-**(The detailed, two-phase, two-developer plan and the comprehensive technical workflow checklist from the previous response are inserted here without change, as they are already complete and definitive.)**
-
-## 4. Parallel Development Plan for Two Developers
-
-This plan breaks down the work into two logical phases based on dependencies. Within each phase, two developers can work on separate features in parallel.
-
-### **Phase 1: Foundational Layer & Read-Only Features**
-
-**Objective:** To establish the core services and build all features that do not require on-chain write transactions. This creates a stable base for the more complex transactional logic.
-
-| **Developer A: Core Services & Identity** | **Developer B: Data & Read APIs** |
-| :--- | :--- |
-| **Domain Ownership:** `core/*`, `features/auth/*`, `features/user/*` | **Domain Ownership:** `features/dashboard/*`, `features/marketplace/*`, `features/documents/*` (read parts) |
-| **Prerequisites:** None. This work can start immediately. | **Prerequisites:** Completion of Core `PrismaService` and `Web3Service` by Developer A. |
-| **Tasks:** | **Tasks:** |
-| 1.  **Set up the project:** Initialize the Hono app, file structure, and Prisma. | 1.  **Implement `MarketplaceService`:** Focus on the logic to read study data from the blockchain cache (the `Study` table). |
-| 2.  **Implement Core Services:** Build the foundational `PrismaService`, `Web3Service` (including contract loading and read-only functions), and `IpfsService`. | 2.  **Build Marketplace Read Endpoints:** Implement the `GET /api/studies` and `GET /api/studies/:studyId` routes and controllers. |
-| 3.  **Implement Auth Feature:** Build the complete `auth` feature for user registration and login (no Web3 needed). | 3.  **Implement `DashboardService`:** Build the logic to aggregate user stats from the database. |
-| 4.  **Implement User Feature:** Build the `user` feature for profile management and the **orchestration logic** for connecting a wallet and initiating DID creation. | 4.  **Build Dashboard Endpoint:** Implement the `GET /api/dashboard/stats` endpoint. |
-| 5.  **Implement Core Middleware:** Build the JWT `auth-middleware`. | 5.  **Build Document Read Endpoint:** Implement the `GET /api/documents` endpoint. |
-| **Phase 1 Deliverable:** A running application where a user can register, log in, connect their wallet, and view marketplace/dashboard data. | **Phase 1 Deliverable:** All read-only API endpoints are functional and serving data. |
-
-### **Phase 2: Transactional Layer & Write Features**
-
-**Objective:** To implement all features that create on-chain transactions and modify state. This phase builds directly on top of the completed foundational layer.
-
-| **Developer A: Core Transactions** | **Developer B: User-Centric Transactions** |
-| :--- | :--- |
-| **Domain Ownership:** `features/documents/*`, `features/marketplace/*` (write parts) | **Domain Ownership:** `features/emergency/*`, `features/access-logs/*` |
-| **Prerequisites:** Completion of all Phase 1 tasks. | **Prerequisites:** Completion of all Phase 1 tasks. |
-| **Tasks:** | **Tasks:** |
-| 1.  **Implement Document Upload:** Build the complete asynchronous workflow in `DocumentService` for `POST /api/documents` (encryption, IPFS upload, on-chain transaction). | 1.  **Implement Emergency QR Generation:** Build the `EmergencyService` logic for creating the signed QR payload for `POST /api/emergency/qr`. |
-| 2.  **Implement Document Revoke:** Build the logic for `DELETE /api/documents/:docId`. | 2.  **Implement Emergency Access:** Build the public `POST /api/emergency/access` endpoint logic, including on-chain grant creation and off-chain access logging. |
-| 3.  **Implement Study Application:** Build the `MarketplaceService` logic for `POST /api/studies/:studyId/apply`. | 3.  **Implement Access Log Endpoint:** Build the `GET /api/access-logs` endpoint. |
-| 4.  **Implement Status Endpoints:** Build all `.../status` polling endpoints. | 4.  **Finalize API Docs & Testing:** Review all Zod schemas, ensure the OpenAPI documentation is complete, and write comprehensive unit/integration tests for owned features. |
-| 5.  **Comprehensive Testing:** Write integration tests for the complex, asynchronous transaction workflows you own. |
-| **Phase 2 Deliverable:** All document and marketplace write operations are functional. | **Phase 2 Deliverable:** The complete emergency access feature is functional and secure. |
-
-### The Asynchronous Workflow Pattern (To be used by both developers)
-
-This is the **non-negotiable pattern** for all on-chain write operations:
-1.  **Controller:** Receives request.
-2.  **Service:** Creates a `PENDING` record in the database.
-3.  **Controller:** Immediately responds `202 Accepted` to the frontend with the record's ID.
-4.  **Service (Background):** The controller triggers the long-running process (e.g., `processUpload`) without `await`. This background task `await`s the transaction confirmation.
-5.  **Service (Background):** Upon completion, it updates the database record to `CONFIRMED` or `FAILED`.
-6.  **Frontend:** Polls a `.../status` endpoint to get the final result.
-
-
-
-## The Definitive Backend Features & Workflows Checklist
-
-This checklist is divided into two parts:
-1.  **Feature Checklist:** A high-level list of all user-facing features the backend must support. This is for product alignment and release planning.
-2.  **Technical Workflow Checklist:** A detailed, granular breakdown of the technical tasks required to implement those features. This is the implementation guide for developers.
-
----
-
-### Part 1: High-Level Feature Checklist (for Product & QA)
-
-This ensures we have built everything required for the MVP from a user's perspective.
-
-| Feature Area | Feature ID | Description | Status |
+| Category | Technology | Version | Why We Chose It |
 | :--- | :--- | :--- | :--- |
-| **User Authentication** | `AUTH-01` | User can register a new account with email and password. | `[ ]` |
-| | `AUTH-02` | User can log in with their credentials to receive a session token. | `[ ]` |
-| | `AUTH-03` | User can log out, invalidating their session. | `[ ]` |
-| | `AUTH-04` | Application can verify a user's session and retrieve their profile. | `[ ]` |
-| **Digital Identity** | `DID-01` | A logged-in user can connect their MetaMask (or other Web3) wallet. | `[ ]` |
-| | `DID-02` | A user with a connected wallet can create their Decentralized Identity (DID). | `[ ]` |
-| | `DID-03` | The application frontend can poll for the status of DID creation. | `[ ]` |
-| **Document Management**| `DOC-01` | User can upload a health document (PDF, JPG, PNG) with a specific category. | `[ ]` |
-| | `DOC-02` | The application frontend can poll for the status of a document upload. | `[ ]` |
-| | `DOC-03` | User can view a list of all their uploaded documents with their status. | `[ ]` |
-| | `DOC-04` | User can revoke an existing document, making it inactive. | `[ ]` |
-| **Emergency Access** | `EM-01` | User can generate a secure Emergency QR code containing selected data categories. | `[ ]` |
-| | `EM-02` | A third party (e.g., paramedic) can scan the QR code and request access. | `[ ]` |
-| | `EM-03` | Access is granted on-chain for a time-limited duration (e.g., 4 hours). | `[ ]` |
-| | `EM-04` | The user can view an immutable log of who has accessed their emergency data. | `[ ]` |
-| **Data Marketplace** | `MKT-01` | User can browse a list of active research studies. | `[ ]` |
-| | `MKT-02` | User can view the detailed information for a single study. | `[ ]` |
-| | `MKT-03` | User can apply to participate in a study, providing one-click consent. | `[ ]` |
-| | `MKT-04` | Upon successful application, the user receives payment in BDAG tokens. | `[ ]` |
-| **Dashboard & Profile** | `DASH-01`| User can view a dashboard with key stats (doc count, leases, earnings). | `[ ]` |
-| | `DASH-02`| User can view their profile settings (name, email, connected wallet, DID). | `[ ]` |
-| | `DASH-03`| User can update their basic profile information (e.g., name). | `[ ]` |
+| **Framework** | **Hono** | v4.x | Blazing fast, lightweight, and runtime-agnostic. Its minimalist, middleware-centric design enforces a clean separation of concerns. |
+| **Database ORM** | **Prisma** | v5.x | Industry-standard for type-safety. The schema-first approach (`schema.prisma`) and auto-generated client eliminate mismatches between our code and the database. |
+| **Database** | **PostgreSQL** | v15.x | Powerful, reliable, and battle-tested relational database. |
+| **Validation** | **Zod** | v3.x | Provides powerful, static type inference from schemas. Using `@hono/zod-validator`, we get effortless, robust request validation. |
+| **API Docs** | **`@hono/zod-openapi`** | - | Automatically generates OpenAPI 3.0 (Swagger) documentation from our existing Zod validation schemas. This ensures our docs are always in sync with the code. |
+| **Web3 Library** | **Ethers.js** | v6.x | The most mature and widely-used library for interacting with EVM-compatible blockchains. Provides a clean, stable API for contract calls and event listening. |
+| **Authentication** | **JWT + bcrypt** | - | Standard, secure approach. Short-lived JWTs for stateless authentication, with `bcrypt` for industry-standard password hashing. |
+| **IPFS Client** | **Pinata SDK** | - | Provides a simple API for pinning files to IPFS, ensuring data persistence. |
+
+### Required Libraries (`package.json`)
+
+```json
+{
+  "dependencies": {
+    "@hono/node-server": "^1.11.1",
+    "@hono/zod-openapi": "^0.11.0",
+    "@pinata/sdk": "^2.1.0",
+    "@prisma/client": "^5.14.0",
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.12.1",
+    "hono": "^4.4.6",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.12.12",
+    "@types/pg": "^8.11.6",
+    "prisma": "^5.14.0",
+    "tsx": "^4.11.0",
+    "typescript": "^5.4.5"
+  }
+}
+```
 
 ---
 
-### Part 2: Detailed Technical Workflow Checklist (for Developers)
+## 3. Project Setup & Local Environment
 
-This breaks down the implementation into logical, dependent tasks. It is organized according to the parallel development plan.
+Follow these steps to get a development environment running.
 
-#### **Phase 1: Foundations & Read-Only Features**
+**Prerequisites:**
+*   Node.js v20.x or later
+*   Docker and Docker Compose (for PostgreSQL and Redis)
 
-**Developer A: Core Services & Identity**
+**Setup Steps:**
 
-*   **`CORE-01` [ ] Project Setup:** Initialize Hono project, install all dependencies, set up `tsconfig.json` and ESLint/Prettier.
-*   **`CORE-02` [ ] Prisma Setup:** Finalize `schema.prisma`, generate the first migration, and implement the singleton `PrismaService`.
-*   **`CORE-03` [ ] Web3 Service (Read-Only):** Implement `Web3Service` to load all 5 smart contracts using Ethers.js. Implement all necessary `view` (read-only) functions (e.g., `getStudyDetails`, `checkAccessGrant`).
-*   **`CORE-04` [ ] Middleware:** Implement the JWT `auth-middleware` and the Zod `validation-middleware`.
-*   **`AUTH-05` [ ] Authentication Service & Endpoints:** Implement the `AuthService`, `AuthController`, and `AuthRoutes` for `register`, `login`, `logout`, and the `/api/users/me` endpoint.
-*   **`USER-01` [ ] Wallet Connection Workflow:** Implement the `UserService` and endpoint for `POST /api/wallet/connect`, including signature verification logic.
-*   **`USER-02` [ ] DID Creation Orchestration:**
-    *   `[ ]` Implement the `POST /api/wallet/create-did` endpoint.
-    *   `[ ]` Implement the "accept and process in background" pattern: create a `PENDING` record, respond `202`, and trigger the background processing.
-    *   `[ ]` Implement the background processing logic in `UserService` which calls `IpfsService` and `Web3Service`.
-    *   `[ ]` Implement the status polling endpoint `GET /api/wallet/did/status`.
+1.  **Clone the Repository:**
+    ```bash
+    git clone https://github.com/healthlease/hub.git
+    cd hub/backend
+    ```
 
-**Developer B: Data & Read APIs**
+2.  **Install Dependencies:**
+    ```bash
+    npm install
+    ```
 
-*   **`CORE-05` [ ] IPFS Service:** Implement the `IpfsService` (can be done in parallel). It should only have a placeholder `encryptAndUpload` method for now.
-*   **`MKT-05` [ ] Marketplace Service (Read-Only):** Implement the `MarketplaceService` methods that read from the `Study` table in the database cache.
-*   **`MKT-06` [ ] Marketplace Endpoints (Read-Only):** Implement the `MarketplaceController` and `MarketplaceRoutes` for `GET /api/studies` and `GET /api/studies/:studyId`.
-*   **`DASH-04` [ ] Dashboard Service:** Implement the `DashboardService` with the Prisma query to aggregate user statistics (`_count` for documents/leases, `sum` for earnings).
-*   **`DASH-05` [ ] Dashboard Endpoint:** Implement the `DashboardController` and `DashboardRoutes` for `GET /api/dashboard/stats`.
-*   **`DOC-05` [ ] Document Endpoint (Read-Only):** Implement the `DocumentController` and `DocumentRoutes` for `GET /api/documents`.
+3.  **Setup Environment Variables:**
+    *   Copy the example environment file: `cp .env.example .env`
+    *   Fill in the values in the `.env` file. You will need to generate a `JWT_SECRET` and get a `PINATA_JWT`. The rest can be default local values.
 
-#### **Phase 2: Transactional Layer & Write Features**
+4.  **Start Local Database:**
+    *   Ensure Docker is running.
+    *   From the project root, run: `docker-compose up -d`
+    *   This will start PostgreSQL and Redis containers.
 
-**Developer A: Core Transactions**
+5.  **Initialize and Migrate Database:**
+    *   This command reads your `prisma/schema.prisma` and creates the necessary tables in your local database.
+    ```bash
+    npx prisma migrate dev --name init
+    ```
 
-*   **`CORE-06` [ ] Web3 Service (Write):** Implement all state-changing functions in `Web3Service` that send transactions (e.g., `createDID`, `addDocument`, `applyToStudy`). Ensure they `await tx.wait()` and return the parsed receipt.
-*   **`DOC-06` [ ] Document Upload Workflow:**
-    *   `[ ]` Implement the full logic in `IpfsService` for encrypting and uploading files.
-    *   `[ ]` Implement the `POST /api/documents` endpoint using the "accept and process" pattern.
-    *   `[ ]` Implement the background processing logic in `DocumentService`.
-    *   `[ ]` Implement the status polling endpoint `GET /api/documents/:docId/status`.
-*   **`DOC-07` [ ] Document Revoke Workflow:** Implement the `DELETE /api/documents/:docId` endpoint and the corresponding `DocumentService` and `Web3Service` logic.
-*   **`MKT-07` [ ] Study Application Workflow:**
-    *   `[ ]` Implement the `POST /api/studies/:studyId/apply` endpoint using the "accept and process" pattern.
-    *   `[ ]` Implement the background processing logic in `MarketplaceService`, which orchestrates calls to `DataLease` and `PaymentProcessor` contracts via `Web3Service`.
+6.  **Generate Prisma Client:**
+    *   This command updates the type-safe `@prisma/client` based on your schema. Run this every time you change `schema.prisma`.
+    ```bash
+    npx prisma generate
+    ```
 
-**Developer B: User-Centric Transactions**
+7.  **Start the Development Server:**
+    ```bash
+    npm run dev
+    ```
+    *   The Hono server will now be running, typically on `http://localhost:3001`.
+    *   Your interactive API documentation will be available at `http://localhost:3001/ui`.
 
-*   **`EM-05` [ ] Emergency QR Generation:** Implement the `EmergencyService` logic and the `POST /api/emergency/qr` endpoint. This involves creating a signed payload, but not an on-chain transaction.
-*   **`EM-06` [ ] Emergency Access Workflow:**
-    *   `[ ]` Implement the public `POST /api/emergency/access` endpoint.
-    *   `[ ]` Implement the logic in `EmergencyService` to:
-        *   Verify the QR signature.
-        *   Call `Web3Service` to execute the `grantAccess` on-chain transaction.
-        *   Create the `AccessLog` record in the database.
-        *   Orchestrate fetching, decrypting, and returning the patient data.
-*   **`LOG-01` [ ] Access Log Endpoint:** Implement the `GET /api/access-logs` endpoint, which reads from the `AccessLog` table.
-*   **`API-DOC` [ ] Finalize API Documentation:** Review all Zod schemas in `api-schemas.ts` and ensure the auto-generated OpenAPI documentation at `/ui` is complete and accurate for all endpoints.
-*   **`TEST-01` [ ] Unit Testing:** Write unit tests for all service methods to ensure business logic is correct in isolation.
+---
 
-This comprehensive checklist provides a clear path to completion, allows both developers to work independently on non-blocking tasks, and ensures that every single requirement from the architectural plan is implemented and verified.
+## 4. Complete API Endpoint Specification (MVP)
+
+This is the definitive list of all API endpoints required for the MVP.
+
+| Category | Method | Endpoint | Auth Required? | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **Authentication** | `POST` | `/api/auth/register` | No | Creates a new user account with email and password. |
+| | `POST` | `/api/auth/login` | No | Logs a user in, returning JWT tokens. |
+| | `POST` | `/api/auth/logout` | Yes | Invalidates the user's session/refresh token. |
+| | `GET` | `/api/users/me` | Yes | Retrieves the profile of the currently authenticated user. |
+| **Wallet & Identity** | `POST` | `/api/wallet/connect` | Yes | Verifies a wallet signature and links a wallet address to the user's account. |
+| | `POST` | `/api/wallet/create-did` | Yes | Creates the user's Decentralized Identity (DID) on the blockchain. |
+| **Dashboard** | `GET` | `/api/dashboard/stats` | Yes | Fetches aggregated stats: document count, active leases, and total earnings. |
+| | `GET` | `/api/dashboard/activity` | Yes | Retrieves a feed of recent user activities (e.g., "Document Uploaded"). |
+| **Documents** | `POST` | `/api/documents` | Yes | Uploads, encrypts, and records a new health document. |
+| | `GET` | `/api/documents` | Yes | Lists metadata for all of the user's documents. |
+| | `DELETE`| `/api/documents/:docId`| Yes | Revokes a document's validity on the blockchain. |
+| **Emergency QR**| `POST` | `/api/emergency/qr` | Yes | Generates a new, signed QR code payload for emergency access. |
+| | `POST` | `/api/emergency/access`| No | Public endpoint for first responders to request access using a scanned QR payload. |
+| **Marketplace** | `GET` | `/api/studies` | Yes | Browses and filters all active research studies. |
+| | `GET` | `/api/studies/:studyId`| Yes | Fetches the detailed information for a single research study. |
+| | `POST` | `/api/studies/:studyId/apply`| Yes | Enrolls the user in a study, triggering the on-chain data lease and payment. |
+| **Access Control**| `GET` | `/api/access-logs` | Yes | Provides an immutable log of who has accessed the user's data and when. |
+| **Settings** | `GET` | `/api/settings` | Yes | Retrieves the user's current profile settings (name, etc.). |
+| | `PUT` | `/api/settings` | Yes | Updates the user's profile settings. |
+
+---
+
+## 5. Data Structures & Schemas (Zod DTOs)
+
+These schemas define the shape of our API data and are used for both validation and documentation.
+
+```typescript
+// src/types/dtos.ts
+import { z } from 'zod';
+
+// --- Authentication ---
+export const RegisterSchema = z.object({
+  email: z.string().email('Invalid email address.'),
+  password: z.string().min(8, 'Password must be at least 8 characters.'),
+});
+export type RegisterDto = z.infer<typeof RegisterSchema>;
+
+export const LoginSchema = z.object({
+  email: z.string().email(),
+  password: z.string(),
+});
+export type LoginDto = z.infer<typeof LoginSchema>;
+
+// --- Wallet ---
+export const ConnectWalletSchema = z.object({
+  walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid wallet address.'),
+  message: z.string(),
+  signature: z.string().regex(/^0x[a-fA-F0-9]{130}$/, 'Invalid signature.'),
+});
+export type ConnectWalletDto = z.infer<typeof ConnectWalletSchema>;
+
+// --- Documents ---
+export const UploadDocumentSchema = z.object({
+  category: z.enum(['LAB_RESULT', 'IMAGING', 'PRESCRIPTION', 'VISIT_NOTES']),
+});
+// Note: File is handled by multipart parser, not Zod schema for the body.
+
+// --- Emergency ---
+export const GenerateQrSchema = z.object({
+  dataToInclude: z.array(z.string()).min(1, 'At least one data category must be selected.'),
+});
+export type GenerateQrDto = z.infer<typeof GenerateQrSchema>;
+
+export const RequestAccessSchema = z.object({
+  qrPayload: z.string(),
+  responderInfo: z.object({
+    name: z.string().min(1),
+    credential: z.string().min(1),
+    location: z.string().min(1),
+  }),
+});
+export type RequestAccessDto = z.infer<typeof RequestAccessSchema>;
+
+// --- Settings ---
+export const UpdateSettingsSchema = z.object({
+    name: z.string().optional(),
+    // Add other updatable profile fields here
+});
+export type UpdateSettingsDto = z.infer<typeof UpdateSettingsSchema>;
+```
+
+---
+
+## 6. Detailed Core Workflows
+
+These are the step-by-step logic flows for the most critical features.
+
+### Workflow 1: Full User Onboarding (Registration to DID)
+
+1.  **Registration (`POST /api/auth/register`):**
+    *   Frontend sends `email` and `password`.
+    *   Hono route validates against `RegisterSchema`.
+    *   `authService.register` hashes the password with `bcrypt` and creates a user in the DB via Prisma.
+    *   Returns `201 Created`.
+
+2.  **Login (`POST /api/auth/login`):**
+    *   Frontend sends `email` and `password`.
+    *   `authService.login` validates credentials.
+    *   If valid, it generates a short-lived JWT access token and a long-lived refresh token.
+    *   Returns the tokens and user object.
+
+3.  **Wallet Connection (`POST /api/wallet/connect`):**
+    *   Frontend prompts the user to sign a static message (e.g., "Sign this message to connect your wallet to HealthLease Hub.").
+    *   Frontend sends the `walletAddress`, `message`, and `signature`.
+    *   `authService.connectWallet` uses `ethers.verifyMessage` to validate the signature.
+    *   If valid, it updates the `walletAddress` on the user's record in Prisma.
+
+4.  **DID Creation (`POST /api/wallet/create-did`):**
+    *   Frontend calls this endpoint after the wallet is connected.
+    *   `identityService.createDid` is called with the `userId`.
+    *   The service generates a basic profile JSON, uploads it to IPFS via `ipfsService` to get an `initialDocumentHash`.
+    *   It then calls `web3Service.createDID(userWalletAddress, initialDocumentHash)`, which executes the `createDID` function on the `DIDRegistry` smart contract.
+    *   The API immediately returns a `202 Accepted` response with the transaction hash.
+    *   Later, the background `DIDCreated` event listener in `web3Service` will fire, and its callback will update the `did` field for the user in the database.
+
+### Workflow 2: Document Upload
+
+1.  **Request:** Frontend sends a `multipart/form-data` request to `POST /api/documents` with the `file` and `category`.
+2.  **Authorization:** JWT middleware verifies the user.
+3.  **Service Call:** The route handler calls `documentService.uploadDocument(userId, file, category)`.
+4.  **Encryption:** `documentService` derives a deterministic encryption key from a user secret (e.g., a signature). It reads the file into a buffer and encrypts it with AES-256.
+5.  **IPFS Upload:** The encrypted buffer is passed to `ipfsService.upload`, which pins it to Pinata and returns the IPFS CID (hash).
+6.  **Blockchain Transaction:** `documentService` calls `web3Service.addDocument(userDID, ipfsHash, category)`, which executes the `addDocument` function on the `DIDRegistry` smart contract.
+7.  **Database Record:** The service creates a new record in the `documents` table using Prisma, storing the `userId`, `ipfsHash`, `category`, and the `onChainId` returned from the transaction.
+8.  **Response:** The API returns a `201 Created` with the metadata of the newly created document record.
+
+### Workflow 3: Emergency Access Request
+
+1.  **Request:** A first responder's device scans a QR code and sends a public request to `POST /api/emergency/access` with the `qrPayload` and `responderInfo`.
+2.  **Verification:** The `emergencyService` is called. It first verifies the signature within the `qrPayload` to securely identify the patient's DID. This proves the QR code is authentic.
+3.  **Blockchain Transaction:** If the signature is valid, the service calls `web3Service.grantEmergencyAccess(...)`, which executes the `grantAccess` function on the `EmergencyAccess` contract. This creates an immutable, time-limited access grant on-chain.
+4.  **Data Retrieval:** The service queries the Prisma `documents` table to find the CIDs of the patient's critical health documents.
+5.  **IPFS Download & Decryption:** It iterates through the CIDs, downloads the encrypted files from IPFS via `ipfsService`, and decrypts them using the patient's re-derived key.
+6.  **Data Parsing:** The service parses the decrypted file contents (e.g., JSON, text) to extract the relevant information (blood type, allergies, etc.).
+7.  **Logging & Response:** It creates a record in the `access_logs` table via Prisma and returns the structured, decrypted patient data along with the grant's expiration time.
+
+---
+
+## 7. API Documentation Strategy
+
+We will use `hono-zod-openapi` to automatically generate our API documentation.
+
+**How it Works:**
+
+1.  **Define a Route Object:** For each endpoint, we create a `createRoute` object that includes the `path`, `method`, and Zod schemas for the `request` and `responses`.
+2.  **Implement the Handler:** We use `app.openapi(routeObject, handler)` to link our implementation logic to the documentation.
+3.  **Serve the Docs:** We add a route that serves the Swagger UI.
+
+**Example Implementation:**
+
+```typescript
+// src/routes/auth.routes.ts
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
+import { RegisterSchema } from '../types/dtos';
+import { swaggerUI } from '@hono/swagger-ui';
+
+const app = new OpenAPIHono();
+
+// 1. Define the route object with metadata
+const registerRoute = createRoute({
+  method: 'post',
+  path: '/register',
+  tags: ['Authentication'],
+  request: {
+    body: {
+      content: { 'application/json': { schema: RegisterSchema } },
+    },
+  },
+  responses: {
+    201: {
+      description: 'User created successfully.',
+      content: { 'application/json': { schema: z.object({ id: z.number(), email: z.string() }) } },
+    },
+  },
+});
+
+// 2. Implement the handler using the route object
+app.openapi(registerRoute, async (c) => {
+  const { email, password } = c.req.valid('json');
+  const newUser = await authService.register(email, password); // Your service logic
+  return c.json({ id: newUser.id, email: newUser.email }, 201);
+});
+
+// 3. Serve the documentation UI
+app.get('/ui', swaggerUI({ url: '/doc' }));
+app.doc('/doc', {
+    openapi: '3.0.0',
+    info: { version: '1.0.0', title: 'HealthLease Hub API' },
+});
+
+export default app;
+```
+This approach ensures your API documentation is always 100% accurate and in sync with your validation logic.
+
+---
+
+## 8. Developer Interaction Model & Responsibilities
+
+Clear communication depends on understanding the "API contracts" between team members.
+
+### vs. Web3/Smart Contract Developer
+
+*   **Your Role:** You are the **exclusive consumer**.
+*   **What You PROVIDE them:** Requirements and feedback (e.g., "This function needs to emit an event.").
+*   **What You CONSUME from them:**
+    1.  **Contract ABIs:** JSON files describing the contract functions. You need these for Ethers.js.
+    2.  **Deployed Contract Addresses:** The `0x...` addresses for your `.env` file.
+    3.  **Event Definitions:** The exact signatures of events for your listeners.
+
+### vs. Frontend Developer
+
+*   **Your Role:** You are the **producer**. Your API is their entire backend.
+*   **What You PROVIDE them:**
+    1.  **The OpenAPI/Swagger UI (`/ui`):** This is your contract with them. It's their single source of truth.
+    2.  **A Stable Dev Server:** A running API for them to develop against.
+    3.  **Clear, Standardized Error Messages.**
+*   **What You CONSUME from them:** API requests, bug reports, and feedback.
+
+### vs. DevOps Engineer
+
+*   **Your Role:** You **produce the application package**.
+*   **What You PROVIDE them:**
+    1.  **A `Dockerfile`:** A recipe to build a portable image of your Hono app.
+    2.  **An `.env.example` file:** A complete list of all required environment variables.
+    3.  **Migration Commands:** `npx prisma migrate deploy`.
+    4.  **A `/health` check endpoint.**
+*   **What You CONSUME from them:** Production environment variables, access to production logs, and a CI/CD pipeline.
+
+---
+
+## 9. Conclusion
+
+This handbook provides the complete architectural and implementation blueprint for the HealthLease Hub backend. By following this guide, you have everything you need to build a secure, performant, and scalable API that fulfills all requirements of the MVP.
+
+**Happy Building!**

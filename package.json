@@ -1,40 +1,48 @@
 {
-    "name": "healthlease",
+    "name": "healthlease-hub-backend",
     "version": "1.0.0",
-    "description": "HealthLease application built with Hono",
-    "type": "module",
-    "main": "src/app.ts",
+    "description": "The complete backend service for the HealthLease Hub MVP.",
+    "main": "dist/app.js",
     "scripts": {
-        "dev": "bun run --hot src/app.ts",
-        "start": "bun run src/app.ts",
-        "build": "bun build src/app.ts --outdir dist --target bun",
-        "type-check": "tsc --noEmit",
-        "db:generate": "bunx prisma generate",
-        "db:push": "bunx prisma db push",
-        "db:migrate": "bunx prisma migrate dev",
-        "db:studio": "bunx prisma studio",
-        "db:seed": "bunx prisma db seed"
+        "dev": "tsx watch src/server.ts",
+        "build": "tsc",
+        "start": "node dist/server.js",
+        "test": "vitest",
+        "studio": "prisma studio",
+        "migrate:dev": "prisma migrate dev",
+        "migrate:deploy": "prisma migrate deploy",
+        "generate": "prisma generate"
     },
     "keywords": [
         "hono",
-        "typescript",
-        "api",
-        "health"
+        "prisma",
+        "blockdag",
+        "web3",
+        "healthtech"
     ],
-    "author": "",
-    "license": "MIT",
+    "author": "HealthLease Hub Team",
+    "license": "UNLICENSED",
     "dependencies": {
-        "@hono/node-server": "^1.12.0",
-        "@prisma/client": "^6.17.1",
-        "hono": "^4.6.3",
-        "prisma": "^6.17.1"
+        "@hono/node-server": "^1.11.1",
+        "@hono/swagger-ui": "^0.2.2",
+        "@hono/zod-openapi": "^0.11.0",
+        "@hono/zod-validator": "^0.2.2",
+        "@pinata/sdk": "^2.1.0",
+        "@prisma/client": "^5.14.0",
+        "bcrypt": "^5.1.1",
+        "dotenv": "^16.4.5",
+        "ethers": "^6.12.1",
+        "hono": "^4.4.6",
+        "jsonwebtoken": "^9.0.2",
+        "zod": "^3.23.8"
     },
     "devDependencies": {
-        "@types/node": "^22.10.2",
-        "typescript": "^5.7.2",
-        "bun-types": "latest"
-    },
-    "engines": {
-        "bun": ">=1.0.0"
+        "@types/bcrypt": "^5.0.2",
+        "@types/jsonwebtoken": "^9.0.6",
+        "@types/node": "^20.12.12",
+        "prisma": "^5.14.0",
+        "tsx": "^4.11.0",
+        "typescript": "^5.4.5",
+        "vitest": "^1.6.0"
     }
 }
