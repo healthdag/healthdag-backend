@@ -1,7 +1,7 @@
 // * User and wallet routes with OpenAPI documentation
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
-import { UserResponseSchema, ConnectWalletSchema, UpdateUserSchema } from '../core/types/api-responses'
+import { UserSchema, ConnectWalletSchema, UpdateUserSchema } from '../core/types/api-schemas'
 
 const app = new OpenAPIHono()
 
@@ -18,7 +18,7 @@ const getUserRoute = createRoute({
       description: 'User profile retrieved successfully',
       content: {
         'application/json': {
-          schema: UserResponseSchema,
+          schema: UserSchema,
         },
       },
     },
@@ -83,7 +83,7 @@ const updateUserRoute = createRoute({
       description: 'User profile updated successfully',
       content: {
         'application/json': {
-          schema: UserResponseSchema,
+          schema: UserSchema,
         },
       },
     },
@@ -167,7 +167,7 @@ const connectWalletRoute = createRoute({
       description: 'Wallet connected successfully',
       content: {
         'application/json': {
-          schema: UserResponseSchema,
+          schema: UserSchema,
         },
       },
     },

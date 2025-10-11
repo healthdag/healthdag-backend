@@ -1,7 +1,7 @@
 // * Marketplace routes with OpenAPI documentation
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
-import { StudyResponseSchema } from '../core/types/api-responses'
+import { StudySchema } from '../core/types/api-schemas'
 
 const app = new OpenAPIHono()
 
@@ -18,7 +18,7 @@ const getStudiesRoute = createRoute({
       description: 'Studies retrieved successfully',
       content: {
         'application/json': {
-          schema: z.array(StudyResponseSchema),
+          schema: z.array(StudySchema),
         },
       },
     },
@@ -93,7 +93,7 @@ const getStudyRoute = createRoute({
       description: 'Study details retrieved successfully',
       content: {
         'application/json': {
-          schema: StudyResponseSchema,
+          schema: StudySchema,
         },
       },
     },

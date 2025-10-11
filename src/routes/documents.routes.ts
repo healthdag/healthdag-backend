@@ -1,7 +1,7 @@
 // * Document routes with OpenAPI documentation
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
-import { DocumentResponseSchema, UploadDocumentSchema } from '../core/types/api-responses'
+import { DocumentSchema, UploadDocumentSchema } from '../core/types/api-schemas'
 
 const app = new OpenAPIHono()
 
@@ -104,7 +104,7 @@ const getDocumentsRoute = createRoute({
       description: 'Documents retrieved successfully',
       content: {
         'application/json': {
-          schema: z.array(DocumentResponseSchema),
+          schema: z.array(DocumentSchema),
         },
       },
     },

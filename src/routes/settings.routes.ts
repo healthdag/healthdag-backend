@@ -1,7 +1,7 @@
 // * Settings routes with OpenAPI documentation
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
-import { UserResponseSchema, UpdateUserSchema } from '../core/types/api-responses'
+import { UserSchema, UpdateUserSchema } from '../core/types/api-schemas'
 
 const app = new OpenAPIHono()
 
@@ -18,7 +18,7 @@ const getSettingsRoute = createRoute({
       description: 'Settings retrieved successfully',
       content: {
         'application/json': {
-          schema: UserResponseSchema,
+          schema: UserSchema,
         },
       },
     },
@@ -83,7 +83,7 @@ const updateSettingsRoute = createRoute({
       description: 'Settings updated successfully',
       content: {
         'application/json': {
-          schema: UserResponseSchema,
+          schema: UserSchema,
         },
       },
     },
