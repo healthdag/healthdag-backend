@@ -110,7 +110,7 @@ class Web3Service {
       const receipt = await tx.wait()
       
       // Extract DID from event logs
-      const didEvent = receipt.logs.find(log => {
+      const didEvent = receipt.logs.find((log: any) => {
         try {
           const parsed = didRegistry.interface.parseLog(log)
           return parsed?.name === 'DIDCreated'

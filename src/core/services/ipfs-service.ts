@@ -1,4 +1,4 @@
-import { PinataSDK } from '@pinata/sdk'
+import PinataSDK from '@pinata/sdk'
 
 // * Singleton IPFS service using Pinata
 class IpfsService {
