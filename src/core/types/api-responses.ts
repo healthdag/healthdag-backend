@@ -46,6 +46,7 @@ export const DocumentResponseSchema = z.object({
   isActive: z.boolean(),
   creationStatus: z.enum(['PENDING', 'CONFIRMED', 'FAILED']),
   uploadedAt: z.date(),
+  userId: z.string().cuid(),
 })
 export type DocumentResponse = z.infer<typeof DocumentResponseSchema>
 
@@ -205,6 +206,15 @@ export const apiResponseMap = {
       accessTime: z.date(),
       dataAccessed: z.array(z.string()),
     })).describe('A list of all emergency access events for the user.'),
+    401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+  },
+  'GET /api/dashboard/activity': {
+    200: z.array(z.object({
+      id: z.string().cuid(),
+      type: z.string(),
+      description: z.string(),
+      timestamp: z.string().datetime(),
+    })).describe('A list of recent user activities.'),
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
   },
 
