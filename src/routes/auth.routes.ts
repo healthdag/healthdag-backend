@@ -229,22 +229,6 @@ app.openapi(logoutRoute, async (c) => {
   }
 })
 
-// === OPENAPI DOCUMENTATION ===
-app.doc('/doc', {
-  openapi: '3.0.0',
-  info: {
-    version: '1.0.0',
-    title: 'HealthLease Hub API',
-    description: 'The complete backend API for HealthLease Hub MVP',
-  },
-  servers: [
-    {
-      url: 'http://localhost:3000',
-      description: 'Development server',
-    },
-  ],
-})
-
-app.get('/ui', swaggerUI({ url: '/doc' }))
+// * OpenAPI documentation is handled by the main server.ts
 
 export default app

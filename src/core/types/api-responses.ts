@@ -233,7 +233,7 @@ type GetResponseSchema<
 export type ApiResponsePayload<
   TEndpoint extends keyof typeof apiResponseMap,
   TStatusCode extends keyof (typeof apiResponseMap)[TEndpoint]
-> = z.infer<GetResponseSchema<TEndpoint, TStatusCode>>
+> = z.infer<GetResponseSchema<TEndpoint, TStatusCode> extends z.ZodTypeAny ? GetResponseSchema<TEndpoint, TStatusCode> : never>
 
 // Export endpoint and status code types for use in controllers
 export type ApiEndpoint = keyof typeof apiResponseMap

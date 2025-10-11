@@ -15,7 +15,7 @@ class IpfsService {
 
     this.pinata = new PinataSDK({
       pinataApiKey: apiKey,
-      pinataSecretKey: secretKey,
+      pinataSecretApiKey: secretKey,
     })
   }
 
@@ -39,11 +39,11 @@ class IpfsService {
           name: fileName || `healthlease-${Date.now()}`,
         },
         pinataOptions: {
-          cidVersion: 0,
+          cidVersion: 0 as const,
         },
       }
 
-      const result = await this.pinata.upload(data, uploadOptions)
+      const result = await this.pinata.pinFileToIPFS(data, uploadOptions)
       return result.IpfsHash
     } catch (error) {
       console.error('IPFS upload failed:', error)
