@@ -1,1 +1,128 @@
-// * Prisma schema for HealthLease application
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+// --- ENUMS ---
+enum DocumentCategory {
+    LAB_RESULT
+    IMAGING
+    PRESCRIPTION
+    VISIT_NOTES
+    PROFILE
+}
+
+enum StudyStatus {
+    Active
+    Paused
+    Closed
+    Cancelled
+}
+
+enum LeaseStatus {
+    Pending
+    Active
+    Expired
+    Revoked
+    Completed
+}
+
+enum DidCreationStatus {
+    NONE
+    PENDING
+    CONFIRMED
+    FAILED
+}
+
+enum RecordCreationStatus {
+    PENDING
+    CONFIRMED
+    FAILED
+}
+
+// --- MODELS ---
+model User {
+    id                String            @id @default(cuid())
+    email             String            @unique
+    name              String?
+    password          String
+    walletAddress     String?           @unique
+    did               String?           @unique
+    didCreationStatus DidCreationStatus @default(NONE)
+    createdAt         DateTime          @default(now())
+    updatedAt         DateTime          @updatedAt
+    documents         Document[]
+    leases            Lease[]
+    accessLogs        AccessLog[]
+}
+
+model Document {
+    id             String               @id @default(cuid())
+    onChainId      BigInt?
+    ipfsHash       String?
+    category       DocumentCategory
+    isActive       Boolean              @default(true)
+    creationStatus RecordCreationStatus @default(PENDING)
+    uploadedAt     DateTime             @default(now())
+    userId         String
+    user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId])
+}
+
+model Study {
+    id                   String      @id @default(cuid())
+    onChainId            BigInt      @unique
+    researcherAddress    String
+    title                String
+    description          String      @db.Text
+    metadataHash         String
+    irbApprovalHash      String
+    paymentPerUser       Decimal     @db.Decimal(20, 8)
+    participantsNeeded   Int
+    participantsEnrolled Int         @default(0)
+    status               StudyStatus @default(Active)
+    createdAt            DateTime    @default(now())
+    updatedAt            DateTime    @updatedAt
+    leases               Lease[]
+}
+
+model Lease {
+    id            String      @id @default(cuid())
+    onChainId     BigInt      @unique
+    paymentAmount Decimal     @db.Decimal(20, 8)
+    startTime     DateTime
+    endTime       DateTime
+    status        LeaseStatus @default(Pending)
+    createdAt     DateTime    @default(now())
+    updatedAt     DateTime    @updatedAt
+    userId        String
+    user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    studyId       String
+    study         Study       @relation(fields: [studyId], references: [id], onDelete: Cascade)
+
+    @@index([userId])
+    @@index([studyId])
+}
+
+model AccessLog {
+    id                  String   @id @default(cuid())
+    onChainGrantId      BigInt
+    responderName       String
+    responderCredential String
+    responderLocation   String
+    dataAccessed        String[]
+    accessTime          DateTime @default(now())
+    grantExpiresAt      DateTime
+    userId              String
+    user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId])
+}
