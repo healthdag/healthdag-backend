@@ -3,6 +3,7 @@ import { logger } from 'hono/logger'
 import { cors } from 'hono/cors'
 import { serve } from '@hono/node-server'
 import { swaggerUI } from '@hono/swagger-ui'
+import { Scalar } from '@scalar/hono-api-reference'
 import { createApiResponse } from './core/services/response-factory'
 import authRoutes from './routes/auth.routes'
 import userRoutes from './routes/user.routes'
@@ -32,6 +33,11 @@ app.route('/api/settings', settingsRoutes)
 
 // * Root documentation routes
 app.get('/ui', swaggerUI({ url: '/doc' }))
+app.get('/scalar', Scalar({ 
+  url: '/doc',
+  pageTitle: 'HealthLease Hub API',
+  theme: 'purple'
+}))
 app.doc('/doc', {
   openapi: '3.0.0',
   info: {
@@ -46,6 +52,11 @@ app.doc('/doc', {
     },
   ],
 })
+
+console.log('📚 API Documentation routes registered:')
+console.log('  • Swagger UI: http://localhost:3000/ui')
+console.log('  • Scalar API Reference: http://localhost:3000/scalar')
+console.log('  • OpenAPI Spec: http://localhost:3000/doc')
 
 // * Health check endpoint
 app.get('/health', (c) => {
@@ -63,7 +74,11 @@ app.get('/', (c) => {
   return c.json({ 
     message: 'HealthLease Hub API', 
     version: '1.0.0',
-    documentation: '/ui',
+    documentation: {
+      swagger: '/ui',
+      scalar: '/scalar',
+      openapi: '/doc'
+    },
     endpoints: {
       health: '/health',
       auth: '/api/auth/*',
