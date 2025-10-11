@@ -18,8 +18,37 @@ import settingsRoutes from './routes/settings.routes'
 const app = new OpenAPIHono()
 
 // * Middleware setup
+// * Configure logger based on environment
+const logLevel = process.env.LOG_LEVEL || 'info'
 app.use('*', logger())
-app.use('*', cors())
+
+// * Debug mode configuration
+if (process.env.DEBUG === 'true') {
+  console.log('🐛 Debug mode enabled')
+  console.log('📊 Environment variables loaded:', {
+    NODE_ENV: process.env.NODE_ENV,
+    PORT: process.env.PORT,
+    CORS_ORIGIN: process.env.CORS_ORIGIN,
+    LOG_LEVEL: process.env.LOG_LEVEL,
+    DEBUG: process.env.DEBUG
+  })
+}
+
+// * CORS configuration with environment variables
+const corsOrigin = process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000', 'http://localhost:5173']
+app.use('*', cors({
+  origin: corsOrigin,
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true,
+}))
+
+// * Log CORS configuration
+console.log('🌐 CORS Configuration:')
+console.log('  • Allowed Origins:', corsOrigin.join(', '))
+console.log('  • Allowed Methods: GET, POST, PUT, DELETE, OPTIONS')
+console.log('  • Allowed Headers: Content-Type, Authorization, X-Requested-With')
+console.log('  • Credentials: Enabled')
 
 // * Mount API routes
 app.route('/api/auth', authRoutes)
@@ -31,36 +60,43 @@ app.route('/api/dashboard', dashboardRoutes)
 app.route('/api/access-logs', accessLogsRoutes)
 app.route('/api/settings', settingsRoutes)
 
-// * Root documentation routes
-app.get('/ui', swaggerUI({ url: '/doc' }))
-app.get('/scalar', Scalar({ 
-  url: '/doc',
-  pageTitle: 'HealthLease Hub API',
-  theme: 'purple'
-}))
-app.doc('/doc', {
-  openapi: '3.0.0',
-  info: {
-    version: '1.0.0',
-    title: 'HealthLease Hub API',
-    description: 'The complete backend API for HealthLease Hub MVP',
-  },
-  servers: [
-    {
-      url: 'http://localhost:3000',
-      description: 'Development server',
+// * Root documentation routes (conditionally enabled)
+if (process.env.ENABLE_DOCS !== 'false') {
+  app.get('/ui', swaggerUI({ url: '/doc' }))
+  app.get('/scalar', Scalar({ 
+    url: '/doc',
+    pageTitle: 'HealthLease Hub API',
+    theme: 'purple'
+  }))
+  app.doc('/doc', {
+    openapi: '3.0.0',
+    info: {
+      version: '1.0.0',
+      title: 'HealthLease Hub API',
+      description: 'The complete backend API for HealthLease Hub MVP',
     },
-    {
-      url: 'https://healthlease-api.goremote.africa',
-      description: 'Production documentation server',
-    },
-  ],
-})
+    servers: [
+      {
+        url: 'http://localhost:3000',
+        description: 'Development server',
+      },
+      {
+        url: 'https://healthlease-api.goremote.africa',
+        description: 'Production documentation server',
+      },
+    ],
+  })
+}
 
-console.log('📚 API Documentation routes registered:')
-console.log('  • Swagger UI: http://localhost:3000/ui')
-console.log('  • Scalar API Reference: http://localhost:3000/scalar')
-console.log('  • OpenAPI Spec: http://localhost:3000/doc')
+// * Log documentation routes if enabled
+if (process.env.ENABLE_DOCS !== 'false') {
+  console.log('📚 API Documentation routes registered:')
+  console.log('  • Swagger UI: http://localhost:3000/ui')
+  console.log('  • Scalar API Reference: http://localhost:3000/scalar')
+  console.log('  • OpenAPI Spec: http://localhost:3000/doc')
+} else {
+  console.log('📚 API Documentation disabled (ENABLE_DOCS=false)')
+}
 
 // * Health check endpoint
 app.get('/health', (c) => {
@@ -75,14 +111,10 @@ app.get('/health', (c) => {
 
 // * Root endpoint
 app.get('/', (c) => {
-  return c.json({ 
+  const response: any = { 
     message: 'HealthLease Hub API', 
     version: '1.0.0',
-    documentation: {
-      swagger: '/ui',
-      scalar: '/scalar',
-      openapi: '/doc'
-    },
+    environment: process.env.NODE_ENV || 'development',
     endpoints: {
       health: '/health',
       auth: '/api/auth/*',
@@ -94,7 +126,18 @@ app.get('/', (c) => {
       accessLogs: '/api/access-logs',
       settings: '/api/settings'
     }
-  })
+  }
+
+  // * Add documentation links if enabled
+  if (process.env.ENABLE_DOCS !== 'false') {
+    response.documentation = {
+      swagger: '/ui',
+      scalar: '/scalar',
+      openapi: '/doc'
+    }
+  }
+
+  return c.json(response)
 })
 
 // * All endpoints are now handled by their respective route modules
