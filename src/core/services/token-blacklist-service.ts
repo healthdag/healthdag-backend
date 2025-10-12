@@ -126,7 +126,7 @@ export class TokenBlacklistService {
 
       // Remove from in-memory blacklist
       const tokensToRemove: string[] = []
-      for (const token of this.blacklistedTokens) {
+      for (const token of Array.from(this.blacklistedTokens)) {
         try {
           const expiration = this.extractTokenExpiration(token)
           if (expiration < now) {

@@ -89,12 +89,7 @@ const requestAccessRoute = createRoute({
       content: {
         'application/json': {
           schema: z.object({
-            patientData: z.object({
-              allergies: z.array(z.string()),
-              medications: z.array(z.string()),
-              bloodType: z.string().nullable(),
-              conditions: z.array(z.string()),
-            }),
+            patientData: z.record(z.any()),
             expiresAt: z.string().datetime(),
           }),
         },

@@ -1,20 +1,28 @@
 import { PinataSDK } from 'pinata'
+import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'crypto'
 
-// * Singleton IPFS service using Pinata v2 SDK
+// * Singleton IPFS service using Pinata SDK with encryption capabilities
 class IpfsService {
   private static instance: IpfsService
   private pinata: PinataSDK
+  private readonly masterSecret: string
+  private readonly algorithm = 'aes-256-cbc'
 
   private constructor() {
-    const jwt = process.env.PINATA_JWT
-    const gateway = process.env.PINATA_GATEWAY
+    const jwt = process.env.PINATA_JWT_TOKEN
+    const gateway = process.env.PINATA_GATEWAY_URL
+    this.masterSecret = process.env.MASTER_ENCRYPTION_SECRET || 'default-master-secret-change-in-production'
 
     if (!jwt) {
-      throw new Error('Pinata JWT not found in environment variables')
+      throw new Error('Pinata JWT token not found in environment variables')
     }
 
     if (!gateway) {
       throw new Error('Pinata Gateway URL not found in environment variables')
+    }
+
+    if (this.masterSecret === 'default-master-secret-change-in-production') {
+      console.warn('! Using default master encryption secret - change MASTER_ENCRYPTION_SECRET in production')
     }
 
     this.pinata = new PinataSDK({
@@ -31,41 +39,131 @@ class IpfsService {
   }
 
   /**
-   * Upload data to IPFS via Pinata v2 SDK
-   * @param data - Buffer or string data to upload
-   * @param fileName - Optional filename for the upload
-   * @returns IPFS hash (CID)
+   * Encrypts the provided data buffer and uploads it to Pinata
+   * @param data - Buffer data to encrypt and upload
+   * @param encryptionKey - Buffer containing the encryption key
+   * @returns Object containing the IPFS hash
    */
-  public async uploadToIpfs(data: Buffer | string, fileName?: string): Promise<string> {
+  public async encryptAndUpload(data: Buffer, encryptionKey: Buffer): Promise<{ ipfsHash: string }> {
     try {
-      // * Convert Buffer/string to File object for v2 SDK
-      let fileData: string | Uint8Array
-      if (Buffer.isBuffer(data)) {
-        fileData = new Uint8Array(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength))
-      } else {
-        fileData = data
-      }
+      // * Encrypt the data using the provided key
+      const encryptedData = this._encrypt(data, encryptionKey)
       
-      const file = new File([fileData], fileName || `healthlease-${Date.now()}`, {
+      // * Convert encrypted buffer to File object for Pinata SDK
+      const fileData = new Uint8Array(encryptedData.buffer.slice(
+        encryptedData.byteOffset, 
+        encryptedData.byteOffset + encryptedData.byteLength
+      ))
+      
+      const file = new File([fileData], `encrypted-${Date.now()}`, {
         type: 'application/octet-stream'
       })
 
+      // * Upload to IPFS via Pinata
       const result = await this.pinata.upload.file(file)
-      return result.cid
+      
+      return { ipfsHash: result.cid }
     } catch (error) {
-      console.error('IPFS upload failed:', error)
-      throw new Error(`Failed to upload to IPFS: ${error}`)
+      console.error('Encrypt and upload failed:', error)
+      throw new Error(`Failed to encrypt and upload to IPFS: ${error}`)
     }
   }
 
   /**
-   * Upload encrypted data to IPFS
-   * @param encryptedData - Encrypted buffer data
-   * @param fileName - Optional filename
-   * @returns IPFS hash
+   * Downloads a file from IPFS and decrypts it
+   * @param ipfsHash - IPFS hash (CID) of the encrypted file
+   * @param encryptionKey - Buffer containing the decryption key
+   * @returns Decrypted buffer data
    */
-  public async encryptAndUpload(encryptedData: Buffer, fileName?: string): Promise<string> {
-    return this.uploadToIpfs(encryptedData, fileName)
+  public async downloadAndDecrypt(ipfsHash: string, encryptionKey: Buffer): Promise<Buffer> {
+    try {
+      // * Download the encrypted file from IPFS
+      const gatewayUrl = process.env.PINATA_GATEWAY_URL || 'https://gateway.pinata.cloud'
+      const response = await fetch(`${gatewayUrl}${ipfsHash}`)
+      
+      if (!response.ok) {
+        throw new Error(`Failed to download from IPFS: ${response.statusText}`)
+      }
+
+      // * Convert response to buffer
+      const encryptedBuffer = Buffer.from(await response.arrayBuffer())
+      
+      // * Decrypt the data using the provided key
+      const decryptedData = this._decrypt(encryptedBuffer, encryptionKey)
+      
+      return decryptedData
+    } catch (error) {
+      console.error('Download and decrypt failed:', error)
+      throw new Error(`Failed to download and decrypt from IPFS: ${error}`)
+    }
+  }
+
+  /**
+   * Encrypts data using AES-256-CBC algorithm
+   * @param data - Buffer data to encrypt
+   * @param key - Buffer containing the encryption key
+   * @returns Encrypted buffer with IV prepended
+   */
+  private _encrypt(data: Buffer, key: Buffer): Buffer {
+    try {
+      // * Generate random initialization vector
+      const iv = randomBytes(16)
+      
+      // * Create cipher with AES-256-CBC algorithm
+      const cipher = createCipheriv(this.algorithm, key, iv)
+      
+      // * Encrypt the data
+      const encrypted = Buffer.concat([cipher.update(data), cipher.final()])
+      
+      // * Prepend IV to encrypted data for decryption
+      return Buffer.concat([iv, encrypted])
+    } catch (error) {
+      console.error('Encryption failed:', error)
+      throw new Error(`Encryption failed: ${error}`)
+    }
+  }
+
+  /**
+   * Decrypts data using AES-256-CBC algorithm
+   * @param encryptedData - Buffer containing IV + encrypted data
+   * @param key - Buffer containing the decryption key
+   * @returns Decrypted buffer data
+   */
+  private _decrypt(encryptedData: Buffer, key: Buffer): Buffer {
+    try {
+      // * Extract IV from the beginning of the encrypted data
+      const iv = encryptedData.slice(0, 16)
+      const encrypted = encryptedData.slice(16)
+      
+      // * Create decipher with AES-256-CBC algorithm
+      const decipher = createDecipheriv(this.algorithm, key, iv)
+      
+      // * Decrypt the data
+      const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()])
+      
+      return decrypted
+    } catch (error) {
+      console.error('Decryption failed:', error)
+      throw new Error(`Decryption failed: ${error}`)
+    }
+  }
+
+  /**
+   * Derives a user-specific encryption key from master secret and user ID
+   * @param userId - User identifier for key derivation
+   * @returns Buffer containing the derived encryption key
+   */
+  private _deriveUserKey(userId: string): Buffer {
+    try {
+      // * Use HMAC-SHA256 to derive a deterministic key from master secret and user ID
+      const hmac = createHmac('sha256', this.masterSecret)
+      hmac.update(userId)
+      
+      return hmac.digest()
+    } catch (error) {
+      console.error('Key derivation failed:', error)
+      throw new Error(`Key derivation failed: ${error}`)
+    }
   }
 
   /**
@@ -75,53 +173,16 @@ class IpfsService {
    */
   public async getIpfsUrl(hash: string): Promise<string> {
     try {
-      // * Use gateways.get to fetch data and construct URL
-      const gatewayUrl = process.env.PINATA_GATEWAY || 'https://gateway.pinata.cloud'
-      return `${gatewayUrl}/ipfs/${hash}`
+      const gatewayUrl = process.env.PINATA_GATEWAY_URL || 'https://gateway.pinata.cloud'
+      return `${gatewayUrl}${hash}`
     } catch (error) {
       console.error('Failed to construct IPFS URL:', error)
-      // * Fallback to direct gateway URL construction
-      const gatewayUrl = process.env.PINATA_GATEWAY || 'https://gateway.pinata.cloud'
-      return `${gatewayUrl}/ipfs/${hash}`
+      throw new Error(`Failed to construct IPFS URL: ${error}`)
     }
   }
 
   /**
-   * Pin a file by its IPFS hash using Pinata v2 SDK
-   * @param hash - IPFS hash (CID) to pin
-   * @returns Pin result
-   */
-  public async pinByHash(hash: string): Promise<any> {
-    try {
-      // * Note: Pinata v2 SDK handles pinning automatically on upload
-      // * This method is kept for compatibility but may not be needed
-      console.warn('pinByHash: Pinata v2 SDK handles pinning automatically on upload')
-      return { hash, status: 'already_pinned' }
-    } catch (error) {
-      console.error('Pin by hash failed:', error)
-      throw new Error(`Failed to pin hash: ${error}`)
-    }
-  }
-
-  /**
-   * Get pinned files list using Pinata v2 SDK
-   * @param limit - Number of files to retrieve
-   * @returns List of pinned files
-   */
-  public async getPinnedFiles(limit: number = 10): Promise<any[]> {
-    try {
-      const result = await this.pinata.files.list()
-      // * Note: The actual filtering and pagination might need to be handled differently
-      // * This is a simplified implementation based on the SDK structure
-      return Array.isArray(result) ? result.slice(0, limit) : []
-    } catch (error) {
-      console.error('Get pinned files failed:', error)
-      throw new Error(`Failed to get pinned files: ${error}`)
-    }
-  }
-
-  /**
-   * Health check for IPFS service using Pinata v2 SDK
+   * Health check for IPFS service using Pinata SDK
    * @returns True if service is healthy
    */
   public async healthCheck(): Promise<boolean> {
