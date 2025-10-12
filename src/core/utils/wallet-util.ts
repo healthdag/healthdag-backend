@@ -171,18 +171,15 @@ export function parseWalletMessage(message: string): WalletMessage | null {
     const timestampMatch = message.match(/Timestamp:\s*(\d+)/)
     const userIdMatch = message.match(/User ID:\s*([^\n]+)/)
     
-    // * Allow messages with just timestamp (for simpler wallet connection)
-    if (!timestampMatch) {
+    // * Require both timestamp and User ID for production security
+    if (!timestampMatch || !userIdMatch) {
       return null
     }
-    
-    // * If no User ID found, use a placeholder or extract from context
-    const userId = userIdMatch ? userIdMatch[1].trim() : 'unknown'
     
     return {
       message,
       timestamp: parseInt(timestampMatch[1]),
-      userId
+      userId: userIdMatch[1].trim()
     }
   } catch {
     return null
@@ -229,6 +226,23 @@ export function isValidSigningMessage(message: string): boolean {
   if (message.length < 10) return false // Too short
   if (message.length > 1000) return false // Too long
   
+  // * Production security: Require both User ID and Timestamp
+  const timestampMatch = message.match(/Timestamp:\s*(\d+)/)
+  const userIdMatch = message.match(/User ID:\s*([^\n]+)/)
+  
+  if (!timestampMatch || !userIdMatch) {
+    return false
+  }
+  
+  // * Validate timestamp is reasonable (not too old, not in future)
+  const timestamp = parseInt(timestampMatch[1])
+  const now = Date.now()
+  const maxAge = 15 * 60 * 1000 // 15 minutes
+  
+  if (timestamp < (now - maxAge) || timestamp > (now + 60000)) { // Allow 1 minute future tolerance
+    return false
+  }
+  
   return true
 }
 
@@ -264,7 +278,7 @@ export function createWalletConnectionRequest(userId: string, walletAddress: str
  * @param data - The connection request data
  * @returns Validation result
  */
-export function validateWalletConnectionRequest(data: WalletConnectionRequest): WalletVerificationResult {
+export function validateWalletConnectionRequest(data: WalletConnectionRequest, expectedUserId?: string): WalletVerificationResult {
   // Validate inputs
   if (!isValidAddress(data.walletAddress)) {
     return {
@@ -283,7 +297,18 @@ export function validateWalletConnectionRequest(data: WalletConnectionRequest): 
   if (!isValidSigningMessage(data.message)) {
     return {
       valid: false,
-      error: 'Invalid message format'
+      error: 'Invalid message format - must include User ID and Timestamp'
+    }
+  }
+  
+  // * Production security: Validate User ID matches authenticated user
+  if (expectedUserId) {
+    const parsed = parseWalletMessage(data.message)
+    if (!parsed || parsed.userId !== expectedUserId) {
+      return {
+        valid: false,
+        error: 'Message User ID does not match authenticated user'
+      }
     }
   }
   

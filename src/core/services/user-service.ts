@@ -192,7 +192,7 @@ export class UserService {
       signature,
       walletAddress
     }
-    const validation = validateWalletConnectionRequest(walletRequest)
+    const validation = validateWalletConnectionRequest(walletRequest, userId)
 
     if (!validation.valid) {
       throw new ValidationError(validation.error || 'Invalid wallet connection request')
