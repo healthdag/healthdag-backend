@@ -1,6 +1,7 @@
 // * Universal Response Factory for HealthLease Hub API
 import { apiResponseMap } from '../types/api-responses'
-import type { ApiResponsePayload, ApiEndpoint, ApiStatusCode } from '../types/api-responses'
+import type { ApiResponsePayload, ApiEndpoint, ApiStatusCode, ErrorResponse } from '../types/api-responses'
+import type { ContentfulStatusCode } from 'hono/utils/http-status'
 
 /**
  * A type-safe factory for creating standardized API responses.
@@ -19,7 +20,7 @@ export function createApiResponse<
   endpoint: TEndpoint,
   statusCode: TStatusCode,
   payload: ApiResponsePayload<TEndpoint, TStatusCode>
-) {
+): { statusCode: ContentfulStatusCode; payload: ApiResponsePayload<TEndpoint, TStatusCode> } {
   // 1. Get the Zod schema for this specific endpoint and status code.
   const schema = apiResponseMap[endpoint][statusCode] as any
 
@@ -35,14 +36,14 @@ export function createApiResponse<
     }
     // In production, return a generic error response
     return {
-      statusCode: 500 as number,
+      statusCode: 500 as ContentfulStatusCode,
       payload: { error: 'Internal server error' },
     }
   }
 
   // 3. Return the structured, typed response object.
   return {
-    statusCode: Number(statusCode),
+    statusCode: statusCode as ContentfulStatusCode,
     payload: validationResult.data,
   }
 }
@@ -65,7 +66,7 @@ export function createErrorResponse<
   error: string,
   message: string,
   details?: any
-) {
+): { statusCode: ContentfulStatusCode; payload: ErrorResponse } {
   return createApiResponse(endpoint, statusCode, {
     error,
     message,
@@ -132,8 +133,8 @@ function exampleControllerUsage() {
       walletAddress: null,
       did: null,
       didCreationStatus: 'NONE',
-      createdAt: new Date('2024-01-01T00:00:00.000Z'),
-      updatedAt: new Date('2024-01-01T00:00:00.000Z'),
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
     }
   )
 

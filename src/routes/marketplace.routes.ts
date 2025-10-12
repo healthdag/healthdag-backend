@@ -1,7 +1,7 @@
 // * Marketplace routes with OpenAPI documentation
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
-import { StudySchema } from '../core/types/api-schemas'
+import { StudyResponseSchema } from '../core/types/api-responses'
 
 const app = new OpenAPIHono()
 
@@ -18,7 +18,7 @@ const getStudiesRoute = createRoute({
       description: 'Studies retrieved successfully',
       content: {
         'application/json': {
-          schema: z.array(StudySchema),
+          schema: z.array(StudyResponseSchema),
         },
       },
     },
@@ -54,6 +54,10 @@ app.openapi(getStudiesRoute, async (c) => {
         participantsNeeded: 100,
         participantsEnrolled: 45,
         status: 'Active',
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
+        metadataHash: 'QmMetadata123...',
+        irbApprovalHash: 'QmIRB123...',
       },
       {
         id: 'study_456',
@@ -65,6 +69,10 @@ app.openapi(getStudiesRoute, async (c) => {
         participantsNeeded: 50,
         participantsEnrolled: 30,
         status: 'Active',
+        createdAt: '2024-01-02T00:00:00.000Z',
+        updatedAt: '2024-01-02T00:00:00.000Z',
+        metadataHash: 'QmMetadata456...',
+        irbApprovalHash: 'QmIRB456...',
       },
     ])
     
@@ -93,7 +101,7 @@ const getStudyRoute = createRoute({
       description: 'Study details retrieved successfully',
       content: {
         'application/json': {
-          schema: StudySchema,
+          schema: StudyResponseSchema,
         },
       },
     },
@@ -142,6 +150,10 @@ app.openapi(getStudyRoute, async (c) => {
       participantsNeeded: 100,
       participantsEnrolled: 45,
       status: 'Active',
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+      metadataHash: 'QmMetadata123...',
+      irbApprovalHash: 'QmIRB123...',
     })
     
     return c.json(response.payload, response.statusCode as any)

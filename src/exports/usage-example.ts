@@ -3,7 +3,7 @@
 // How to interact with deployed contracts using ethers.js
 
 import { ethers } from 'ethers';
-import { ContractABIs, ContractAddresses } from './exports/contracts';
+import { ContractABIs, ContractAddresses } from './contracts';
 
 // Setup provider and signer
 const provider = new ethers.JsonRpcProvider('https://rpc.awakening.bdagscan.com', 1043);
@@ -11,31 +11,31 @@ const signer = new ethers.Wallet('YOUR_PRIVATE_KEY', provider);
 
 // Create contract instances
 const didRegistry = new ethers.Contract(
-  ContractAddresses.didRegistry,
+  ContractAddresses.DataLease, // * Using DataLease as placeholder for DID registry
   ContractABIs.DIDRegistry,
   signer
 );
 
 const marketplace = new ethers.Contract(
-  ContractAddresses.marketplace,
+  ContractAddresses.Marketplace,
   ContractABIs.Marketplace,
   signer
 );
 
 const dataLease = new ethers.Contract(
-  ContractAddresses.dataLease,
+  ContractAddresses.DataLease,
   ContractABIs.DataLease,
   signer
 );
 
 const emergencyAccess = new ethers.Contract(
-  ContractAddresses.emergencyAccess,
+  ContractAddresses.EmergencyAccess,
   ContractABIs.EmergencyAccess,
   signer
 );
 
 const paymentProcessor = new ethers.Contract(
-  ContractAddresses.paymentProcessor,
+  ContractAddresses.PaymentProcessor,
   ContractABIs.PaymentProcessor,
   signer
 );
