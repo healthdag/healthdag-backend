@@ -1,26 +1,89 @@
-// * BlockDAG Web3 service for HealthLease application
+// * Web3Service - Sole interface with Ethers.js library and smart contracts
+// * No other service should ever import ethers directly
 import { ethers } from 'ethers'
+import { ContractABIs } from '../../exports/contracts.js'
 
-// * Singleton BlockDAG Web3 service
+// * Study struct interface for blockchain data
+interface StudyStruct {
+  id: bigint;
+  title: string;
+  description: string;
+  researcher: string;
+  fee: bigint;
+  isActive: boolean;
+  createdAt: bigint;
+  updatedAt: bigint;
+}
+
+// * Singleton Web3Service class
 class Web3Service {
   private static instance: Web3Service
-  private provider: ethers.JsonRpcProvider
-  private wallet: ethers.Wallet | null = null
-  private contracts: Map<string, ethers.Contract> = new Map()
+  public readonly provider: ethers.JsonRpcProvider
+  public readonly signer: ethers.Wallet
+  public readonly didRegistry: ethers.Contract
+  public readonly dataLease: ethers.Contract
+  public readonly emergencyAccess: ethers.Contract
+  public readonly marketplace: ethers.Contract
+  public readonly paymentProcessor: ethers.Contract
 
   private constructor() {
     const rpcUrl = process.env.RPC_URL
     const privateKey = process.env.PRIVATE_KEY
 
     if (!rpcUrl) {
-      throw new Error('BlockDAG RPC URL not found in environment variables')
+      throw new Error('RPC_URL environment variable is required')
     }
 
+    if (!privateKey) {
+      throw new Error('PRIVATE_KEY environment variable is required')
+    }
+
+    // * Initialize provider and signer
     this.provider = new ethers.JsonRpcProvider(rpcUrl)
+    this.signer = new ethers.Wallet(privateKey, this.provider)
 
-    if (privateKey) {
-      this.wallet = new ethers.Wallet(privateKey, this.provider)
+    // * Get contract addresses from environment variables
+    const didRegistryAddress = process.env.DID_REGISTRY_ADDRESS
+    const dataLeaseAddress = process.env.DATA_LEASE_ADDRESS
+    const emergencyAccessAddress = process.env.EMERGENCY_ACCESS_ADDRESS
+    const marketplaceAddress = process.env.MARKETPLACE_ADDRESS
+    const paymentProcessorAddress = process.env.PAYMENT_PROCESSOR_ADDRESS
+
+    if (!didRegistryAddress || !dataLeaseAddress || !emergencyAccessAddress || 
+        !marketplaceAddress || !paymentProcessorAddress) {
+      throw new Error('One or more contract addresses not found in environment variables')
     }
+
+    // * Initialize contract instances
+    this.didRegistry = new ethers.Contract(
+      didRegistryAddress,
+      ContractABIs.DIDRegistry,
+      this.signer
+    )
+
+    this.dataLease = new ethers.Contract(
+      dataLeaseAddress,
+      ContractABIs.DataLease,
+      this.signer
+    )
+
+    this.emergencyAccess = new ethers.Contract(
+      emergencyAccessAddress,
+      ContractABIs.EmergencyAccess,
+      this.signer
+    )
+
+    this.marketplace = new ethers.Contract(
+      marketplaceAddress,
+      ContractABIs.Marketplace,
+      this.signer
+    )
+
+    this.paymentProcessor = new ethers.Contract(
+      paymentProcessorAddress,
+      ContractABIs.PaymentProcessor,
+      this.signer
+    )
   }
 
   public static getInstance(): Web3Service {
@@ -30,202 +93,244 @@ class Web3Service {
     return Web3Service.instance
   }
 
-  /**
-   * Initialize wallet with private key
-   * @param privateKey - BlockDAG private key
-   */
-  public initializeWallet(privateKey: string): void {
-    this.wallet = new ethers.Wallet(privateKey, this.provider)
-  }
+  // ====================================================================================
+  // PUBLIC METHODS (READ-ONLY)
+  // ====================================================================================
 
   /**
-   * Get current wallet address
-   * @returns Wallet address or null
+   * Get study details by on-chain ID
+   * @param onChainId - Study ID on blockchain
+   * @returns Study struct data
    */
-  public getWalletAddress(): string | null {
-    return this.wallet?.address || null
-  }
-
-  /**
-   * Get BlockDAG network info
-   * @returns Network information
-   */
-  public async getNetworkInfo(): Promise<any> {
+  async getStudyDetails(onChainId: bigint): Promise<StudyStruct> {
     try {
-      const network = await this.provider.getNetwork()
-      const blockNumber = await this.provider.getBlockNumber()
-      const gasPrice = await this.provider.getFeeData()
-
+      const study = await this.marketplace.getStudy(onChainId)
       return {
-        chainId: network.chainId.toString(),
-        name: network.name,
-        blockNumber,
-        gasPrice: gasPrice.gasPrice?.toString(),
-        network: process.env.BLOCKDAG_NETWORK || 'mainnet'
+        id: study.id,
+        title: study.title,
+        description: study.description,
+        researcher: study.researcher,
+        fee: study.fee,
+        isActive: study.isActive,
+        createdAt: study.createdAt,
+        updatedAt: study.updatedAt
       }
     } catch (error) {
-      console.error('Failed to get network info:', error)
-      throw new Error(`Failed to get BlockDAG network info: ${error}`)
+      throw new Error(`Failed to get study details: ${error}`)
     }
   }
 
   /**
-   * Load smart contract
-   * @param contractName - Name of the contract
-   * @param contractAddress - Contract address
-   * @param abi - Contract ABI
+   * Get all active studies
+   * @returns Array of active study structs
    */
-  public loadContract(contractName: string, contractAddress: string, abi: any[]): void {
-    if (!this.wallet) {
-      throw new Error('Wallet not initialized. Call initializeWallet() first.')
-    }
-
-    const contract = new ethers.Contract(contractAddress, abi, this.wallet)
-    this.contracts.set(contractName, contract)
-  }
-
-  /**
-   * Get contract instance
-   * @param contractName - Name of the contract
-   * @returns Contract instance
-   */
-  public getContract(contractName: string): ethers.Contract {
-    const contract = this.contracts.get(contractName)
-    if (!contract) {
-      throw new Error(`Contract ${contractName} not loaded`)
-    }
-    return contract
-  }
-
-  /**
-   * Create DID on BlockDAG
-   * @param walletAddress - User's wallet address
-   * @param ipfsHash - IPFS hash of the profile
-   * @returns Transaction receipt
-   */
-  public async createDID(walletAddress: string, ipfsHash: string): Promise<any> {
+  async getActiveStudies(): Promise<StudyStruct[]> {
     try {
-      const didRegistry = this.getContract('DID_REGISTRY')
-      const tx = await didRegistry.createDID(walletAddress, ipfsHash)
-      const receipt = await tx.wait()
-      
-      // Extract DID from event logs
-      const didEvent = receipt.logs.find((log: any) => {
-        try {
-          const parsed = didRegistry.interface.parseLog(log)
-          return parsed?.name === 'DIDCreated'
-        } catch {
-          return false
-        }
-      })
-
-      if (didEvent) {
-        const parsed = didRegistry.interface.parseLog(didEvent)
-        return {
-          success: true,
-          transactionHash: receipt.hash,
-          did: parsed?.args.did,
-          blockNumber: receipt.blockNumber
-        }
-      }
-
-      throw new Error('DID creation event not found in transaction logs')
+      const studies = await this.marketplace.getActiveStudies()
+      return studies.map((study: any) => ({
+        id: study.id,
+        title: study.title,
+        description: study.description,
+        researcher: study.researcher,
+        fee: study.fee,
+        isActive: study.isActive,
+        createdAt: study.createdAt,
+        updatedAt: study.updatedAt
+      }))
     } catch (error) {
-      console.error('DID creation failed:', error)
+      throw new Error(`Failed to get active studies: ${error}`)
+    }
+  }
+
+  /**
+   * Check if access grant is valid
+   * @param grantId - Access grant ID
+   * @returns True if grant is valid and active
+   */
+  async checkAccessGrant(grantId: bigint): Promise<boolean> {
+    try {
+      const grant = await this.emergencyAccess.getAccessGrant(grantId)
+      return grant.isActive && grant.expiresAt > BigInt(Math.floor(Date.now() / 1000))
+    } catch (error) {
+      throw new Error(`Failed to check access grant: ${error}`)
+    }
+  }
+
+  // ====================================================================================
+  // PUBLIC METHODS (WRITE/TRANSACTIONAL)
+  // ====================================================================================
+
+  /**
+   * Create a new DID for a user
+   * @param ownerAddress - User's wallet address
+   * @param initialDocHash - Initial document hash (IPFS hash)
+   * @returns Created DID string
+   */
+  async createDID(ownerAddress: string, initialDocHash: string): Promise<{ did: string }> {
+    try {
+      const tx = await this.didRegistry.createDID(ownerAddress, initialDocHash)
+      const receipt = await this._waitForTransaction(tx)
+      
+      const didEvent = this._parseEvent(receipt, 'DIDCreated')
+      const did = didEvent.args.did
+
+      return { did }
+    } catch (error) {
       throw new Error(`Failed to create DID: ${error}`)
     }
   }
 
   /**
-   * Add document to BlockDAG
-   * @param walletAddress - User's wallet address
+   * Add a document to a DID
+   * @param didOwnerAddress - DID owner's wallet address
    * @param ipfsHash - IPFS hash of the document
    * @param category - Document category
-   * @returns Transaction receipt
+   * @returns New document ID on-chain
    */
-  public async addDocument(walletAddress: string, ipfsHash: string, category: string): Promise<any> {
+  async addDocument(didOwnerAddress: string, ipfsHash: string, category: string): Promise<{ onChainId: bigint }> {
     try {
-      const dataLease = this.getContract('DATA_LEASE')
-      const tx = await dataLease.addDocument(walletAddress, ipfsHash, category)
-      const receipt = await tx.wait()
+      const tx = await this.dataLease.addDocument(didOwnerAddress, ipfsHash, category)
+      const receipt = await this._waitForTransaction(tx)
+      
+      const documentEvent = this._parseEvent(receipt, 'DocumentAdded')
+      const onChainId = documentEvent.args.documentId
 
-      return {
-        success: true,
-        transactionHash: receipt.hash,
-        blockNumber: receipt.blockNumber
-      }
+      return { onChainId }
     } catch (error) {
-      console.error('Document addition failed:', error)
       throw new Error(`Failed to add document: ${error}`)
     }
   }
 
   /**
-   * Apply to study on BlockDAG
-   * @param walletAddress - User's wallet address
-   * @param studyId - Study ID
-   * @returns Transaction receipt
+   * Revoke a document from a DID
+   * @param didOwnerAddress - DID owner's wallet address
+   * @param onChainId - Document ID on-chain
+   * @returns Success status
    */
-  public async applyToStudy(walletAddress: string, studyId: string): Promise<any> {
+  async revokeDocument(didOwnerAddress: string, onChainId: bigint): Promise<{ success: boolean }> {
     try {
-      const dataLease = this.getContract('DATA_LEASE')
-      const paymentProcessor = this.getContract('PAYMENT_PROCESSOR')
+      const tx = await this.dataLease.revokeDocument(didOwnerAddress, onChainId)
+      await this._waitForTransaction(tx)
       
-      // Create lease
-      const leaseTx = await dataLease.createLease(walletAddress, studyId)
-      const leaseReceipt = await leaseTx.wait()
-
-      // Process payment
-      const paymentTx = await paymentProcessor.processPayment(walletAddress, studyId)
-      const paymentReceipt = await paymentTx.wait()
-
-      return {
-        success: true,
-        leaseTransactionHash: leaseReceipt.hash,
-        paymentTransactionHash: paymentReceipt.hash,
-        blockNumber: leaseReceipt.blockNumber
-      }
+      return { success: true }
     } catch (error) {
-      console.error('Study application failed:', error)
+      throw new Error(`Failed to revoke document: ${error}`)
+    }
+  }
+
+  /**
+   * Apply to participate in a study
+   * @param didOwnerAddress - DID owner's wallet address
+   * @param did - User's DID
+   * @param studyOnChainId - Study ID on-chain
+   * @returns New lease ID on-chain
+   */
+  async applyToStudy(didOwnerAddress: string, did: string, studyOnChainId: bigint): Promise<{ leaseOnChainId: bigint }> {
+    try {
+      const tx = await this.dataLease.applyToStudy(didOwnerAddress, did, studyOnChainId)
+      const receipt = await this._waitForTransaction(tx)
+      
+      const participantEvent = this._parseEvent(receipt, 'ParticipantApplied')
+      const leaseOnChainId = participantEvent.args.leaseId
+
+      return { leaseOnChainId }
+    } catch (error) {
       throw new Error(`Failed to apply to study: ${error}`)
     }
   }
 
   /**
-   * Grant emergency access on BlockDAG
-   * @param walletAddress - User's wallet address
-   * @param responderInfo - Responder information
-   * @param duration - Access duration in hours
-   * @returns Transaction receipt
+   * Grant emergency access to patient data
+   * @param patientDID - Patient's DID
+   * @param responderInfo - Emergency responder information
+   * @returns Grant ID and expiration timestamp
    */
-  public async grantEmergencyAccess(walletAddress: string, responderInfo: any, duration: number): Promise<any> {
+  async grantEmergencyAccess(patientDID: string, responderInfo: any): Promise<{ onChainGrantId: bigint, expiresAt: Date }> {
     try {
-      const emergencyAccess = this.getContract('EMERGENCY_ACCESS')
-      const tx = await emergencyAccess.grantAccess(walletAddress, responderInfo, duration)
-      const receipt = await tx.wait()
+      const tx = await this.emergencyAccess.grantEmergencyAccess(patientDID, responderInfo)
+      const receipt = await this._waitForTransaction(tx)
+      
+      const accessEvent = this._parseEvent(receipt, 'AccessGranted')
+      const onChainGrantId = accessEvent.args.grantId
+      const expiresAt = new Date(Number(accessEvent.args.expiresAt) * 1000)
 
-      return {
-        success: true,
-        transactionHash: receipt.hash,
-        grantId: receipt.logs[0]?.args?.grantId,
-        blockNumber: receipt.blockNumber
-      }
+      return { onChainGrantId, expiresAt }
     } catch (error) {
-      console.error('Emergency access grant failed:', error)
       throw new Error(`Failed to grant emergency access: ${error}`)
     }
   }
 
+  // ====================================================================================
+  // PRIVATE METHODS
+  // ====================================================================================
+
   /**
-   * Health check for BlockDAG service
+   * Wait for transaction confirmation and return receipt
+   * @param tx - Transaction response
+   * @returns Transaction receipt
+   */
+  private async _waitForTransaction(tx: ethers.TransactionResponse): Promise<ethers.TransactionReceipt> {
+    try {
+      const receipt = await tx.wait()
+      if (!receipt) {
+        throw new Error('Transaction receipt is null')
+      }
+      return receipt
+    } catch (error) {
+      throw new Error(`Transaction failed: ${error}`)
+    }
+  }
+
+  /**
+   * Parse event from transaction receipt logs
+   * @param receipt - Transaction receipt
+   * @param eventName - Name of the event to parse
+   * @returns Parsed event log
+   */
+  private _parseEvent(receipt: ethers.TransactionReceipt, eventName: string): ethers.LogDescription {
+    try {
+      // * Try to find the event in any of the contract interfaces
+      const contracts = [this.didRegistry, this.dataLease, this.emergencyAccess, this.marketplace, this.paymentProcessor]
+      
+      for (const contract of contracts) {
+        try {
+          const event = receipt.logs.find(log => {
+            try {
+              const parsed = contract.interface.parseLog(log)
+              return parsed?.name === eventName
+            } catch {
+              return false
+            }
+          })
+
+          if (event) {
+            const parsed = contract.interface.parseLog(event)
+            if (parsed) {
+              return parsed
+            }
+          }
+        } catch {
+          // * Continue to next contract
+          continue
+        }
+      }
+
+      throw new Error(`Event ${eventName} not found in transaction logs`)
+    } catch (error) {
+      throw new Error(`Failed to parse event ${eventName}: ${error}`)
+    }
+  }
+
+  /**
+   * Health check for Web3 service
    * @returns True if service is healthy
    */
-  public async healthCheck(): Promise<boolean> {
+  async healthCheck(): Promise<boolean> {
     try {
       await this.provider.getBlockNumber()
       return true
     } catch (error) {
-      console.error('BlockDAG health check failed:', error)
+      console.error('Web3Service health check failed:', error)
       return false
     }
   }
