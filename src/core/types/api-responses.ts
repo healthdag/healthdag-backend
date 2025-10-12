@@ -194,20 +194,19 @@ export const apiResponseMap = {
   // === EMERGENCY ===
   'POST /api/emergency/qr': {
     200: z.object({ qrPayload: z.string() }).describe('The signed payload to be embedded in a QR code.'),
+    400: ErrorResponseSchema.describe('Bad Request: User does not have a DID or invalid request.'),
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    404: ErrorResponseSchema.describe('Not Found: User not found.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to generate QR payload.'),
   },
   'POST /api/emergency/access': {
     200: z.object({
-      patientData: z.object({
-        allergies: z.array(z.string()),
-        medications: z.array(z.string()),
-        bloodType: z.string().nullable(),
-        conditions: z.array(z.string()),
-      }),
+      patientData: z.record(z.any()).describe('Decrypted emergency data for the patient organized by category.'),
       expiresAt: z.string().datetime(),
     }).describe('Decrypted emergency data for the patient.'),
     400: ErrorResponseSchema.describe('Bad Request: The QR payload is invalid or malformed.'),
     403: ErrorResponseSchema.describe('Forbidden: The on-chain grant could not be created or access is denied.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to process emergency access request.'),
   },
   
   // === DASHBOARD & LOGS ===
