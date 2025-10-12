@@ -3,6 +3,8 @@ import type { Context, Next } from 'hono'
 import { extractTokenFromHeader, verifyToken } from '../utils/jwt-util'
 import { createErrorResponse } from '../services/response-factory'
 import type { ApiEndpoint } from '../types/api-responses'
+import { TokenBlacklistService } from '../services/token-blacklist-service'
+import { PrismaClient } from '@prisma/client'
 
 // ====================================================================================
 // TYPES & INTERFACES
@@ -16,6 +18,17 @@ export interface AuthenticatedContext extends Context {
 export interface AuthMiddlewareOptions {
   required?: boolean
   allowExpired?: boolean
+}
+
+// * Singleton token blacklist service
+let tokenBlacklistService: TokenBlacklistService | null = null
+
+function getTokenBlacklistService(): TokenBlacklistService {
+  if (!tokenBlacklistService) {
+    const prisma = new PrismaClient()
+    tokenBlacklistService = new TokenBlacklistService(prisma)
+  }
+  return tokenBlacklistService
 }
 
 // ====================================================================================
@@ -32,7 +45,7 @@ export async function authenticateToken(
   c: Context, 
   next: Next, 
   options: AuthMiddlewareOptions = { required: true }
-): Promise<Response> {
+): Promise<Response | void> {
   try {
     // Extract token from Authorization header
     const authHeader = c.req.header('Authorization')
@@ -45,7 +58,7 @@ export async function authenticateToken(
       }
       // Continue without authentication if not required
       await next()
-      return c.json({ success: true })
+      return
     }
 
     // Verify token
@@ -57,14 +70,26 @@ export async function authenticateToken(
       }
       // Continue without authentication if not required
       await next()
-      return c.json({ success: true })
+      return
+    }
+
+    // Check if token is blacklisted
+    const blacklistService = getTokenBlacklistService()
+    const isBlacklisted = await blacklistService.isTokenBlacklisted(token)
+    if (isBlacklisted) {
+      if (options.required) {
+        // * Return error response directly for middleware
+        return c.json({ error: 'Unauthorized', message: 'Token has been revoked' }, 401)
+      }
+      // Continue without authentication if not required
+      await next()
+      return
     }
 
     // Attach user ID to context
     c.set('userId', verification.payload.sub)
     
     await next()
-    return c.json({ success: true })
   } catch (error) {
     // * Return error response directly for middleware
     return c.json({ error: 'Unauthorized', message: 'Authentication failed' }, 401)
@@ -76,7 +101,7 @@ export async function authenticateToken(
  * @param c - Hono context
  * @param next - Next middleware function
  */
-export async function requireAuth(c: Context, next: Next): Promise<Response> {
+export async function requireAuth(c: Context, next: Next): Promise<Response | void> {
   return authenticateToken(c, next, { required: true })
 }
 
@@ -85,7 +110,7 @@ export async function requireAuth(c: Context, next: Next): Promise<Response> {
  * @param c - Hono context
  * @param next - Next middleware function
  */
-export async function optionalAuth(c: Context, next: Next): Promise<Response> {
+export async function optionalAuth(c: Context, next: Next): Promise<Response | void> {
   return authenticateToken(c, next, { required: false })
 }
 
@@ -94,7 +119,7 @@ export async function optionalAuth(c: Context, next: Next): Promise<Response> {
  * @param c - Hono context
  * @param next - Next middleware function
  */
-export async function requireAdmin(c: Context, next: Next): Promise<Response> {
+export async function requireAdmin(c: Context, next: Next): Promise<Response | void> {
   // First require authentication
   const authResult = await requireAuth(c, async () => {
     // TODO: Implement admin role checking
@@ -104,12 +129,12 @@ export async function requireAdmin(c: Context, next: Next): Promise<Response> {
   })
   
   // If auth failed, return the error response
-  if (authResult.status !== 200) {
+  if (authResult && typeof authResult === 'object' && 'status' in authResult && authResult.status !== 200) {
     return authResult
   }
   
-  // Admin check passed, return success
-  return c.json({ success: true })
+  // Admin check passed, continue
+  await next()
 }
 
 // ====================================================================================

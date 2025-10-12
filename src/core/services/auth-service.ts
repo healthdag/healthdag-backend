@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client'
 import { hashPassword, comparePassword, validatePasswordStrength } from '../utils/password-util'
 import { generateAccessToken, verifyToken } from '../utils/jwt-util'
 import { validateEmail, validatePassword } from '../utils/validation-util'
+import { TokenBlacklistService } from './token-blacklist-service'
 import type { 
   User, 
   UserCreateInput, 
@@ -48,9 +49,11 @@ export class ValidationError extends Error {
 
 export class AuthService {
   private prisma: PrismaClient
+  private tokenBlacklistService: TokenBlacklistService
 
   constructor(prisma: PrismaClient) {
     this.prisma = prisma
+    this.tokenBlacklistService = new TokenBlacklistService(prisma)
   }
 
   // ====================================================================================
@@ -207,18 +210,23 @@ export class AuthService {
   // ====================================================================================
 
   /**
-   * * Logs out a user (placeholder for future token blacklisting)
+   * * Logs out a user by blacklisting their token
    * @param userId - User ID to log out
+   * @param token - JWT token to blacklist (optional)
    */
-  async logout(userId: string): Promise<void> {
-    // TODO: Implement token blacklisting in the future
-    // For now, this is a placeholder as the system is stateless
-    // In a production system, you might want to:
-    // 1. Add tokens to a blacklist
-    // 2. Store logout events for audit purposes
-    // 3. Implement refresh token rotation
-    
-    console.log(`User ${userId} logged out`)
+  async logout(userId: string, token?: string): Promise<void> {
+    try {
+      if (token) {
+        // Blacklist the specific token
+        await this.tokenBlacklistService.blacklistToken(token, userId, 'User logout')
+        console.log(`Token blacklisted for user: ${userId}`)
+      } else {
+        console.log(`User ${userId} logged out (no token provided)`)
+      }
+    } catch (error) {
+      console.error('Failed to logout user:', error)
+      // Don't throw error - logout should not fail even if blacklisting fails
+    }
   }
 
   // ====================================================================================

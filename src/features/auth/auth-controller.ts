@@ -119,7 +119,7 @@ export class AuthControllerImpl implements AuthController {
   // ====================================================================================
 
   /**
-   * * Logs out a user (placeholder for future token blacklisting)
+   * * Logs out a user by blacklisting their token
    * @param c - Hono context
    * @returns Logout response
    */
@@ -132,7 +132,11 @@ export class AuthControllerImpl implements AuthController {
         return c.json(response.payload, response.statusCode)
       }
       
-      await this.authService.logout(userId)
+      // Extract token from Authorization header for blacklisting
+      const authHeader = c.req.header('Authorization')
+      const token = authHeader?.replace('Bearer ', '') || undefined
+      
+      await this.authService.logout(userId, token)
       
       const logoutResponse: LogoutResponse = {
         message: 'Logged out successfully.'

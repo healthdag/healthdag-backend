@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client'
 import { AuthService } from '../core/services/auth-service'
 import { createAuthController } from '../features/auth/auth-controller'
 import { requireAuth } from '../core/middleware/auth-middleware'
+import { authRateLimit } from '../core/middleware/rate-limit-middleware'
 import { UserCreateInputSchema, LoginCredentialsSchema } from '../core/types/auth-types'
 import type { Context } from 'hono'
 
@@ -205,27 +206,9 @@ const logoutRoute = createRoute({
 })
 
 app.openapi(logoutRoute, async (c) => {
-  try {
-    // Extract token from Authorization header
-    const authHeader = c.req.header('Authorization')
-    const token = authHeader?.replace('Bearer ', '') || ''
-
-    if (!token) {
-      return c.json({ error: 'Unauthorized', message: 'Missing or invalid authorization header' }, 401)
-    }
-
-    // Verify token (simplified for now)
-    // TODO: Implement proper JWT verification
-    
-    // Set user ID in context (mock for now)
-    c.set('userId', 'mock-user-id')
-    
-    const response = await authController.logout(c)
-    const data = await response.json()
-    return c.json(data, response.status as any) as any
-  } catch (error) {
-    return c.json({ error: 'Unauthorized', message: 'Authentication failed' }, 401)
-  }
+  const response = await authController.logout(c)
+  const data = await response.json()
+  return c.json(data, response.status as any) as any
 })
 
 // * OpenAPI documentation is handled by the main server.ts

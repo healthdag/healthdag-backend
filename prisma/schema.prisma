@@ -126,3 +126,15 @@ model AccessLog {
 
     @@index([userId])
 }
+
+model BlacklistedToken {
+    id        String   @id @default(cuid())
+    token     String   @unique
+    userId    String?
+    reason    String?
+    expiresAt DateTime
+    createdAt DateTime @default(now())
+
+    @@index([token])
+    @@index([expiresAt])
+}
