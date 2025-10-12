@@ -1,9 +1,24 @@
 // * User and wallet routes with OpenAPI documentation
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { PrismaClient } from '@prisma/client'
+import { UserService } from '../core/services/user-service'
+import { createUserController } from '../features/user/user-controller'
+import { requireAuth } from '../core/middleware/auth-middleware'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
-import { UserSchema, ConnectWalletSchema, UpdateUserSchema } from '../core/types/api-schemas'
+import { UserSchema } from '../core/types/api-schemas'
+import { WalletConnectionRequestSchema, UserUpdateInputSchema } from '../core/types/auth-types'
 
-const app = new OpenAPIHono()
+// * Define the context variables interface
+interface UserContextVariables {
+  userId?: string
+}
+
+const app = new OpenAPIHono<{ Variables: UserContextVariables }>()
+
+// * Initialize services
+const prisma = new PrismaClient()
+const userService = new UserService(prisma)
+const userController = createUserController(userService)
 
 // === GET USER PROFILE ===
 const getUserRoute = createRoute({
@@ -39,25 +54,25 @@ const getUserRoute = createRoute({
 
 app.openapi(getUserRoute, async (c) => {
   try {
-    // TODO: Implement actual user retrieval logic
-    // const user = await userService.getCurrentUser(c.get('user'))
+    // Extract token from Authorization header
+    const authHeader = c.req.header('Authorization')
+    const token = authHeader?.replace('Bearer ', '') || ''
+
+    if (!token) {
+      return c.json({ error: 'Unauthorized', message: 'Missing or invalid authorization header' }, 401)
+    }
+
+    // Verify token (simplified for now)
+    // TODO: Implement proper JWT verification
     
-    // Mock response for now
-    const response = createApiResponse('GET /api/user/me', 200, {
-      id: 'user_123',
-      email: 'user@example.com',
-      name: 'John Doe',
-      walletAddress: '0x1234...5678',
-      did: 'did:example:123456789',
-      didCreationStatus: 'CONFIRMED',
-      createdAt: new Date('2024-01-01T00:00:00.000Z'),
-      updatedAt: new Date('2024-01-01T00:00:00.000Z'),
-    })
+    // Set user ID in context (mock for now)
+    c.set('userId', 'mock-user-id')
     
-    return c.json(response.payload, response.statusCode as any)
-  } catch (error: any) {
-    const response = createErrorResponse('GET /api/user/me', 401, 'Unauthorized', 'Missing or invalid JWT')
-    return c.json(response.payload, response.statusCode as any)
+    const response = await userController.getCurrentUser(c)
+    const data = await response.json()
+    return c.json(data, response.status as any) as any
+  } catch (error) {
+    return c.json({ error: 'Unauthorized', message: 'Authentication failed' }, 401)
   }
 })
 
@@ -73,7 +88,7 @@ const updateUserRoute = createRoute({
     body: {
       content: {
         'application/json': {
-          schema: UpdateUserSchema,
+          schema: UserUpdateInputSchema,
         },
       },
     },
@@ -116,32 +131,25 @@ const updateUserRoute = createRoute({
 
 app.openapi(updateUserRoute, async (c) => {
   try {
-    const body = c.req.valid('json')
-    
-    // TODO: Implement actual user update logic
-    // const updatedUser = await userService.updateUser(c.get('user'), body)
-    
-    // Mock response for now
-    const response = createApiResponse('PUT /api/user/me', 200, {
-      id: 'user_123',
-      email: 'user@example.com',
-      name: body.name || 'John Doe',
-      walletAddress: '0x1234...5678',
-      did: 'did:example:123456789',
-      didCreationStatus: 'CONFIRMED',
-      createdAt: new Date('2024-01-01T00:00:00.000Z'),
-      updatedAt: new Date(),
-    })
-    
-    return c.json(response.payload, response.statusCode as any)
-  } catch (error: any) {
-    if (error.name === 'ValidationError') {
-      const response = createErrorResponse('PUT /api/user/me', 400, 'Validation Error', 'The request body is malformed')
-      return c.json(response.payload, response.statusCode as any)
+    // Extract token from Authorization header
+    const authHeader = c.req.header('Authorization')
+    const token = authHeader?.replace('Bearer ', '') || ''
+
+    if (!token) {
+      return c.json({ error: 'Unauthorized', message: 'Missing or invalid authorization header' }, 401)
     }
+
+    // Verify token (simplified for now)
+    // TODO: Implement proper JWT verification
     
-    const response = createErrorResponse('PUT /api/user/me', 401, 'Unauthorized', 'Missing or invalid JWT')
-    return c.json(response.payload, response.statusCode as any)
+    // Set user ID in context (mock for now)
+    c.set('userId', 'mock-user-id')
+    
+    const response = await userController.updateUser(c)
+    const data = await response.json()
+    return c.json(data, response.status as any) as any
+  } catch (error) {
+    return c.json({ error: 'Unauthorized', message: 'Authentication failed' }, 401)
   }
 })
 
@@ -157,7 +165,7 @@ const connectWalletRoute = createRoute({
     body: {
       content: {
         'application/json': {
-          schema: ConnectWalletSchema,
+          schema: WalletConnectionRequestSchema,
         },
       },
     },
@@ -212,37 +220,25 @@ const connectWalletRoute = createRoute({
 
 app.openapi(connectWalletRoute, async (c) => {
   try {
-    const body = c.req.valid('json')
-    
-    // TODO: Implement actual wallet connection logic
-    // const updatedUser = await walletService.connectWallet(c.get('user'), body)
-    
-    // Mock response for now
-    const response = createApiResponse('POST /api/user/wallet/connect', 200, {
-      id: 'user_123',
-      email: 'user@example.com',
-      name: 'John Doe',
-      walletAddress: body.walletAddress,
-      did: null,
-      didCreationStatus: 'NONE',
-      createdAt: new Date('2024-01-01T00:00:00.000Z'),
-      updatedAt: new Date(),
-    })
-    
-    return c.json(response.payload, response.statusCode as any)
-  } catch (error: any) {
-    if (error.name === 'InvalidSignatureError') {
-      const response = createErrorResponse('POST /api/user/wallet/connect', 400, 'Bad Request', 'The signature is invalid or the address is malformed')
-      return c.json(response.payload, response.statusCode as any)
+    // Extract token from Authorization header
+    const authHeader = c.req.header('Authorization')
+    const token = authHeader?.replace('Bearer ', '') || ''
+
+    if (!token) {
+      return c.json({ error: 'Unauthorized', message: 'Missing or invalid authorization header' }, 401)
     }
+
+    // Verify token (simplified for now)
+    // TODO: Implement proper JWT verification
     
-    if (error.name === 'WalletAlreadyLinkedError') {
-      const response = createErrorResponse('POST /api/user/wallet/connect', 409, 'Conflict', 'This wallet is already linked to another account')
-      return c.json(response.payload, response.statusCode as any)
-    }
+    // Set user ID in context (mock for now)
+    c.set('userId', 'mock-user-id')
     
-    const response = createErrorResponse('POST /api/user/wallet/connect', 401, 'Unauthorized', 'Missing or invalid JWT')
-    return c.json(response.payload, response.statusCode as any)
+    const response = await userController.connectWallet(c)
+    const data = await response.json()
+    return c.json(data, response.status as any) as any
+  } catch (error) {
+    return c.json({ error: 'Unauthorized', message: 'Authentication failed' }, 401)
   }
 })
 

@@ -97,30 +97,9 @@ export const AccessLogSchema = z.object({
 })
 export type AccessLog = z.infer<typeof AccessLogSchema>
 
-// --- Request DTOs ---
-export const RegisterUserSchema = z.object({
-  email: z.string().email('Invalid email address.'),
-  password: z.string().min(8, 'Password must be at least 8 characters.'),
-})
-export type RegisterUserDto = z.infer<typeof RegisterUserSchema>
-
-export const LoginUserSchema = z.object({
-  email: z.string().email(),
-  password: z.string(),
-})
-export type LoginUserDto = z.infer<typeof LoginUserSchema>
-
-export const ConnectWalletSchema = z.object({
-  walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid wallet address.'),
-  message: z.string(),
-  signature: z.string().regex(/^0x[a-fA-F0-9]{130}$/, 'Invalid signature.'),
-})
-export type ConnectWalletDto = z.infer<typeof ConnectWalletSchema>
-
-export const UpdateUserSchema = z.object({
-  name: z.string().optional(),
-})
-export type UpdateUserDto = z.infer<typeof UpdateUserSchema>
+// * Authentication DTOs moved to auth-types.ts to avoid duplication
+// * Import from auth-types.ts instead:
+// import { UserCreateInputSchema, LoginCredentialsSchema, UserUpdateInputSchema, WalletConnectionRequestSchema } from './auth-types'
 
 export const UploadDocumentSchema = z.object({
   category: z.enum(['LAB_RESULT', 'IMAGING', 'PRESCRIPTION', 'VISIT_NOTES']),
@@ -159,3 +138,9 @@ export const SuccessMessageSchema = z.object({
   message: z.string(),
 })
 export type SuccessMessage = z.infer<typeof SuccessMessageSchema>
+
+// User update schema
+export const UpdateUserSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+})
+export type UpdateUser = z.infer<typeof UpdateUserSchema>

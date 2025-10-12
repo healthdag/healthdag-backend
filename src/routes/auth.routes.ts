@@ -1,10 +1,26 @@
 // * Authentication routes with OpenAPI documentation
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { swaggerUI } from '@hono/swagger-ui'
-import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
-import { RegisterUserSchema, LoginUserSchema } from '../core/types/api-schemas'
+import { PrismaClient } from '@prisma/client'
+import { AuthService } from '../core/services/auth-service'
+import { createAuthController } from '../features/auth/auth-controller'
+import { requireAuth } from '../core/middleware/auth-middleware'
+import { UserCreateInputSchema, LoginCredentialsSchema } from '../core/types/auth-types'
+import type { Context } from 'hono'
 
-const app = new OpenAPIHono()
+// * Define the context variables interface
+interface AuthContextVariables {
+  userId?: string
+  validatedBody?: any
+}
+
+const app = new OpenAPIHono<{ Variables: AuthContextVariables }>()
+
+// * Initialize services
+const prisma = new PrismaClient()
+const authService = new AuthService(prisma)
+const authController = createAuthController(authService)
+
 
 // === REGISTER ROUTE ===
 const registerRoute = createRoute({
@@ -17,7 +33,7 @@ const registerRoute = createRoute({
     body: {
       content: {
         'application/json': {
-          schema: RegisterUserSchema,
+          schema: UserCreateInputSchema,
         },
       },
     },
@@ -61,26 +77,18 @@ const registerRoute = createRoute({
 
 app.openapi(registerRoute, async (c) => {
   try {
-    const body = c.req.valid('json')
+    const body = await c.req.json()
+    const validated = UserCreateInputSchema.parse(body)
+    c.set('validatedBody', validated)
     
-    // TODO: Implement actual registration logic
-    // const newUser = await authService.register(body)
-    
-    // Mock response for now
-    const response = createApiResponse('POST /api/auth/register', 201, {
-      id: 'user_123',
-      email: body.email,
-    })
-    
-    return c.json(response.payload, response.statusCode as any)
-  } catch (error: any) {
-    if (error.name === 'ConflictError') {
-      const response = createErrorResponse('POST /api/auth/register', 409, 'Conflict', error.message)
-      return c.json(response.payload, response.statusCode as any)
+    const response = await authController.register(c)
+    const data = await response.json()
+    return c.json(data, response.status as any) as any
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return c.json({ error: 'Validation Error', message: 'Invalid request body', details: error.errors }, 400)
     }
-    
-    const response = createErrorResponse('POST /api/auth/register', 400, 'Validation Error', 'The request body is malformed')
-    return c.json(response.payload, response.statusCode as any)
+    throw error
   }
 })
 
@@ -95,7 +103,7 @@ const loginRoute = createRoute({
     body: {
       content: {
         'application/json': {
-          schema: LoginUserSchema,
+          schema: LoginCredentialsSchema,
         },
       },
     },
@@ -148,35 +156,18 @@ const loginRoute = createRoute({
 
 app.openapi(loginRoute, async (c) => {
   try {
-    const body = c.req.valid('json')
+    const body = await c.req.json()
+    const validated = LoginCredentialsSchema.parse(body)
+    c.set('validatedBody', validated)
     
-    // TODO: Implement actual login logic
-    // const result = await authService.login(body)
-    
-    // Mock response for now
-    const response = createApiResponse('POST /api/auth/login', 200, {
-      accessToken: 'jwt-token-here',
-      user: {
-        id: 'user_123',
-        email: body.email,
-        name: 'John Doe',
-        walletAddress: null,
-        did: null,
-        didCreationStatus: 'NONE',
-        createdAt: new Date('2024-01-01T00:00:00.000Z'),
-        updatedAt: new Date('2024-01-01T00:00:00.000Z'),
-      },
-    })
-    
-    return c.json(response.payload, response.statusCode as any)
-  } catch (error: any) {
-    if (error.name === 'InvalidCredentialsError') {
-      const response = createErrorResponse('POST /api/auth/login', 401, 'Unauthorized', 'Invalid email or password')
-      return c.json(response.payload, response.statusCode as any)
+    const response = await authController.login(c)
+    const data = await response.json()
+    return c.json(data, response.status as any) as any
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return c.json({ error: 'Validation Error', message: 'Invalid request body', details: error.errors }, 400)
     }
-    
-    const response = createErrorResponse('POST /api/auth/login', 400, 'Validation Error', 'The request body is malformed')
-    return c.json(response.payload, response.statusCode as any)
+    throw error
   }
 })
 
@@ -215,17 +206,25 @@ const logoutRoute = createRoute({
 
 app.openapi(logoutRoute, async (c) => {
   try {
-    // TODO: Implement actual logout logic
-    // await authService.logout(c.get('user'))
+    // Extract token from Authorization header
+    const authHeader = c.req.header('Authorization')
+    const token = authHeader?.replace('Bearer ', '') || ''
+
+    if (!token) {
+      return c.json({ error: 'Unauthorized', message: 'Missing or invalid authorization header' }, 401)
+    }
+
+    // Verify token (simplified for now)
+    // TODO: Implement proper JWT verification
     
-    const response = createApiResponse('POST /api/auth/logout', 200, {
-      message: 'Logged out successfully.',
-    })
+    // Set user ID in context (mock for now)
+    c.set('userId', 'mock-user-id')
     
-    return c.json(response.payload, response.statusCode as any)
-  } catch (error: any) {
-    const response = createErrorResponse('POST /api/auth/logout', 401, 'Unauthorized', 'No active session to log out from')
-    return c.json(response.payload, response.statusCode as any)
+    const response = await authController.logout(c)
+    const data = await response.json()
+    return c.json(data, response.status as any) as any
+  } catch (error) {
+    return c.json({ error: 'Unauthorized', message: 'Authentication failed' }, 401)
   }
 })
 

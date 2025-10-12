@@ -32,8 +32,8 @@ export const UserResponseSchema = z.object({
   walletAddress: z.string().nullable(),
   did: z.string().nullable(),
   didCreationStatus: z.enum(['NONE', 'PENDING', 'CONFIRMED', 'FAILED']),
-  createdAt: z.date(),
-  updatedAt: z.date(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
 })
 export type UserResponse = z.infer<typeof UserResponseSchema>
 
@@ -45,7 +45,7 @@ export const DocumentResponseSchema = z.object({
   category: z.enum(['LAB_RESULT', 'IMAGING', 'PRESCRIPTION', 'VISIT_NOTES', 'PROFILE']),
   isActive: z.boolean(),
   creationStatus: z.enum(['PENDING', 'CONFIRMED', 'FAILED']),
-  uploadedAt: z.date(),
+  uploadedAt: z.string().datetime(),
   userId: z.string().cuid(),
 })
 export type DocumentResponse = z.infer<typeof DocumentResponseSchema>
@@ -61,6 +61,10 @@ export const StudyResponseSchema = z.object({
   participantsNeeded: z.number().int(),
   participantsEnrolled: z.number().int(),
   status: z.enum(['Active', 'Paused', 'Closed', 'Cancelled']),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  metadataHash: z.string(),
+  irbApprovalHash: z.string(),
 })
 export type StudyResponse = z.infer<typeof StudyResponseSchema>
 
@@ -75,37 +79,62 @@ export const apiResponseMap = {
     201: z.object({ id: z.string().cuid(), email: z.string().email() }).describe('User created successfully.'),
     400: ErrorResponseSchema.describe('Validation Error: The request body is malformed.'),
     409: ErrorResponseSchema.describe('Conflict: An account with this email already exists.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Registration failed.'),
   },
   'POST /api/auth/login': {
     200: z.object({ accessToken: z.string(), user: UserResponseSchema }).describe('Login successful.'),
     400: ErrorResponseSchema.describe('Validation Error: The request body is malformed.'),
     401: ErrorResponseSchema.describe('Unauthorized: Invalid email or password.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Login failed.'),
   },
   'POST /api/auth/logout': {
     200: z.object({ message: z.literal('Logged out successfully.') }),
     401: ErrorResponseSchema.describe('Unauthorized: No active session to log out from.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Logout failed.'),
   },
 
   // === USER & WALLET ===
   'GET /api/user/me': {
     200: UserResponseSchema.describe('The profile of the currently authenticated user.'),
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    404: ErrorResponseSchema.describe('Not Found: User not found.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to retrieve user profile.'),
   },
   'PUT /api/user/me': {
     200: UserResponseSchema.describe('The updated user profile.'),
     400: ErrorResponseSchema.describe('Validation Error: The request body is malformed.'),
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    404: ErrorResponseSchema.describe('Not Found: User not found.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to update user profile.'),
   },
   'POST /api/user/wallet/connect': {
     200: UserResponseSchema.describe('User profile updated with the new wallet address.'),
     400: ErrorResponseSchema.describe('Bad Request: The signature is invalid or the address is malformed.'),
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    404: ErrorResponseSchema.describe('Not Found: User not found.'),
     409: ErrorResponseSchema.describe('Conflict: This wallet is already linked to another account.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to connect wallet.'),
   },
   'POST /api/user/wallet/did': {
     202: AsyncAcceptedResponseSchema.describe('DID creation has been initiated.'),
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
     409: ErrorResponseSchema.describe('Conflict: User already has a DID, or wallet is not connected.'),
+  },
+  'DELETE /api/user/wallet/connect': {
+    200: UserResponseSchema.describe('User profile updated with wallet disconnected.'),
+    401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    404: ErrorResponseSchema.describe('Not Found: No wallet connected to disconnect.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to disconnect wallet.'),
+  },
+  'GET /api/user/stats': {
+    200: z.object({
+      documentCount: z.number().int(),
+      activeLeases: z.number().int(),
+      totalEarned: z.string().describe('Total earnings as a formatted string, e.g., "150.00"'),
+    }).describe('User statistics.'),
+    401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    404: ErrorResponseSchema.describe('Not Found: User not found.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to retrieve user statistics.'),
   },
   'GET /api/user/wallet/did/status': {
     200: z.object({
@@ -206,15 +235,6 @@ export const apiResponseMap = {
       accessTime: z.date(),
       dataAccessed: z.array(z.string()),
     })).describe('A list of all emergency access events for the user.'),
-    401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
-  },
-  'GET /api/dashboard/activity': {
-    200: z.array(z.object({
-      id: z.string().cuid(),
-      type: z.string(),
-      description: z.string(),
-      timestamp: z.string().datetime(),
-    })).describe('A list of recent user activities.'),
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
   },
 

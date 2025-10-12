@@ -1,7 +1,8 @@
 // * Settings routes with OpenAPI documentation
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
-import { UserSchema, UpdateUserSchema } from '../core/types/api-schemas'
+import { UserResponseSchema } from '../core/types/api-responses'
+import { UpdateUserSchema } from '../core/types/api-schemas'
 
 const app = new OpenAPIHono()
 
@@ -18,7 +19,7 @@ const getSettingsRoute = createRoute({
       description: 'Settings retrieved successfully',
       content: {
         'application/json': {
-          schema: UserSchema,
+          schema: UserResponseSchema,
         },
       },
     },
@@ -50,8 +51,8 @@ app.openapi(getSettingsRoute, async (c) => {
       walletAddress: '0x1234...5678',
       did: 'did:example:123456789',
       didCreationStatus: 'CONFIRMED',
-      createdAt: new Date('2024-01-01T00:00:00.000Z'),
-      updatedAt: new Date('2024-01-15T10:30:00.000Z'),
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-15T10:30:00.000Z',
     })
     
     return c.json(response.payload, response.statusCode as any)
@@ -83,7 +84,7 @@ const updateSettingsRoute = createRoute({
       description: 'Settings updated successfully',
       content: {
         'application/json': {
-          schema: UserSchema,
+          schema: UserResponseSchema,
         },
       },
     },
@@ -129,8 +130,8 @@ app.openapi(updateSettingsRoute, async (c) => {
       walletAddress: '0x1234...5678',
       did: 'did:example:123456789',
       didCreationStatus: 'CONFIRMED',
-      createdAt: new Date('2024-01-01T00:00:00.000Z'),
-      updatedAt: new Date(),
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: new Date().toISOString(),
     })
     
     return c.json(response.payload, response.statusCode as any)
