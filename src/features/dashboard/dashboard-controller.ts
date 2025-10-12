@@ -1,5 +1,5 @@
 // * Dashboard controller for HealthLease application
-import { Context } from 'hono'
+import type { Context } from 'hono'
 import { DashboardService, type DashboardStats } from './dashboard-service'
 import { prismaService } from '../../core/services/prisma-service'
 // * Simple error response helper
