@@ -187,16 +187,16 @@ export class MarketplaceService {
 
       // * Call web3Service to apply to study on blockchain
       const result = await this.web3Service.applyToStudy(
+        study.onChainId,
         user.walletAddress,
-        user.did,
-        study.onChainId
+        JSON.stringify({ did: user.did, leaseId })
       )
 
       // * Update lease record with on-chain ID and status
       await this.prisma.lease.update({
         where: { id: leaseId },
         data: {
-          onChainId: result.leaseOnChainId,
+          onChainId: result.applicationId,
           status: 'Active'
         }
       })
@@ -211,7 +211,7 @@ export class MarketplaceService {
         }
       })
 
-      logger.info('Study application processed successfully', { leaseId, onChainId: result.leaseOnChainId.toString() })
+      logger.info('Study application processed successfully', { leaseId, onChainId: result.applicationId.toString() })
     } catch (error) {
       logger.error('Failed to process study application', { error: error instanceof Error ? error.message : String(error), leaseId, userId, studyId })
 

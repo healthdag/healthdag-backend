@@ -4,7 +4,12 @@ import { PrismaClient } from '@prisma/client'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
 import { logError } from '../core/utils/error-logger'
 
-const app = new OpenAPIHono()
+// * Define the context variables interface
+interface AccessLogsContextVariables {
+  userId?: string
+}
+
+const app = new OpenAPIHono<{ Variables: AccessLogsContextVariables }>()
 
 // * Initialize Prisma client
 console.log('🔧 Initializing access logs services...')
@@ -59,7 +64,7 @@ const getAccessLogsRoute = createRoute({
 
 app.openapi(getAccessLogsRoute, async (c) => {
   try {
-    const userId = c.get('userId')
+    const userId = c.get('userId') as string
     
     if (!userId) {
       const response = createErrorResponse(
@@ -88,12 +93,18 @@ app.openapi(getAccessLogsRoute, async (c) => {
       take: 50 // Limit to last 50 logs
     })
     
-    const response = createApiResponse('GET /api/access-logs', 200, accessLogs)
+    // Convert dates to ISO strings for JSON serialization
+    const formattedLogs = accessLogs.map(log => ({
+      ...log,
+      accessTime: log.accessTime.toISOString()
+    }))
+    
+    const response = createApiResponse('GET /api/access-logs', 200, formattedLogs)
     return c.json(response.payload, response.statusCode as any)
   } catch (error: any) {
     logError('ACCESS_LOGS', error, {
       endpoint: 'GET /api/access-logs',
-      userId: c.get('userId'),
+      userId: c.get('userId') as string,
       operation: 'list'
     })
     

@@ -1,5 +1,5 @@
 // * Authentication controller for HealthLease Hub
-import type { Context } from 'hono'
+import type { Context, TypedResponse } from 'hono'
 import { AuthService, ConflictError, UnauthorizedError, ValidationError } from '../../core/services/auth-service'
 import { createApiResponse, createErrorResponse } from '../../core/services/response-factory'
 import { logger } from '../../core/utils/logger'

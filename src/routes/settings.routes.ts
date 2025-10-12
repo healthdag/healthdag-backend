@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
 import { UserResponseSchema } from '../core/types/api-responses'
 import { UpdateUserSchema } from '../core/types/api-schemas'
-import { UserService } from '../features/user/user-service'
+import { UserService } from '../core/services/user-service'
 import { createUserController } from '../features/user/user-controller'
 import { logError } from '../core/utils/error-logger'
 

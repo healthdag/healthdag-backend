@@ -1,5 +1,5 @@
 // * User controller for HealthLease Hub
-import type { Context } from 'hono'
+import type { Context, TypedResponse } from 'hono'
 import { UserService } from '../../core/services/user-service'
 import { ConflictError, ValidationError } from '../../core/services/auth-service'
 import { NotFoundError } from '../../core/services/user-service'
@@ -22,6 +22,8 @@ export interface UserController {
   connectWallet(c: Context): Promise<Response>
   disconnectWallet(c: Context): Promise<Response>
   getUserStats(c: Context): Promise<Response>
+  createDid(c: Context): Promise<Response>
+  getDidStatus(c: Context): Promise<Response>
 }
 
 // ====================================================================================
@@ -278,6 +280,7 @@ export class UserControllerImpl implements UserController {
       return c.json(response.payload, response.statusCode)
     }
   }
+
 
   /**
    * * Gets the DID creation status for the current user

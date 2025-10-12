@@ -97,7 +97,9 @@ app.openapi(registerRoute, async (c) => {
     c.set('validatedBody', validated)
     
     logInfo('AUTH_ROUTES', 'Register request validated', { email: validated.email })
-    return await authController.register(c)
+    const response = await authController.register(c)
+    const data = await response.json()
+    return c.json(data, response.status as any)
   } catch (error) {
     if (error instanceof z.ZodError) {
       logError('AUTH_ROUTES', error, { operation: 'register-validation', errors: error.errors })
@@ -179,7 +181,9 @@ app.openapi(loginRoute, async (c) => {
     c.set('validatedBody', validated)
     
     logInfo('AUTH_ROUTES', 'Login request validated', { email: validated.email })
-    return await authController.login(c)
+    const response = await authController.login(c)
+    const data = await response.json()
+    return c.json(data, response.status as any)
   } catch (error) {
     if (error instanceof z.ZodError) {
       logError('AUTH_ROUTES', error, { operation: 'login-validation', errors: error.errors })
@@ -225,7 +229,9 @@ const logoutRoute = createRoute({
 
 app.openapi(logoutRoute, async (c) => {
   logInfo('AUTH_ROUTES', 'Logout route called', { userId: c.get('userId') })
-  return await authController.logout(c)
+  const response = await authController.logout(c)
+  const data = await response.json()
+  return c.json(data, response.status as any)
 })
 
 // * OpenAPI documentation is handled by the main server.ts

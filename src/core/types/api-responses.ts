@@ -19,7 +19,7 @@ export type ErrorResponse = z.infer<typeof ErrorResponseSchema>
 // Used for endpoints that start a background job (e.g., DID creation, document upload).
 export const AsyncAcceptedResponseSchema = z.object({
   id: z.string().cuid().describe('The ID of the resource being processed.'),
-  status: z.literal('PENDING').describe('Indicates the operation has been accepted and is pending.'),
+  status: z.enum(['NONE', 'PENDING', 'CONFIRMED', 'FAILED']).describe('The current status of the operation.'),
 })
 export type AsyncAcceptedResponse = z.infer<typeof AsyncAcceptedResponseSchema>
 
@@ -118,7 +118,9 @@ export const apiResponseMap = {
   'POST /api/user/wallet/did': {
     202: AsyncAcceptedResponseSchema.describe('DID creation has been initiated.'),
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    404: ErrorResponseSchema.describe('Not Found: User not found.'),
     409: ErrorResponseSchema.describe('Conflict: User already has a DID, or wallet is not connected.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to initiate DID creation.'),
   },
   'DELETE /api/user/wallet/connect': {
     200: UserResponseSchema.describe('User profile updated with wallet disconnected.'),
@@ -142,6 +144,8 @@ export const apiResponseMap = {
       did: z.string().nullable(),
     }).describe('The current status of DID creation.'),
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    404: ErrorResponseSchema.describe('Not Found: User not found.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to retrieve DID status.'),
   },
 
   // === DOCUMENTS ===
@@ -149,10 +153,12 @@ export const apiResponseMap = {
     202: AsyncAcceptedResponseSchema.describe('Document upload has been initiated.'),
     400: ErrorResponseSchema.describe('Bad Request: Missing file, invalid category, or file too large.'),
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to upload document.'),
   },
   'GET /api/documents': {
     200: z.array(DocumentResponseSchema).describe('A list of the user\'s documents.'),
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to retrieve documents.'),
   },
   'GET /api/documents/:id/status': {
     200: z.object({
@@ -160,13 +166,17 @@ export const apiResponseMap = {
       ipfsHash: z.string().nullable(),
       onChainId: z.string().nullable(),
     }).describe('The current status of the document upload.'),
+    400: ErrorResponseSchema.describe('Bad Request: Document ID is required.'),
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
     404: ErrorResponseSchema.describe('Not Found: No document with this ID belongs to the user.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to retrieve document status.'),
   },
   'DELETE /api/documents/:id': {
-    200: z.object({ message: z.literal('Document revoked successfully.') }),
+    200: z.object({ message: z.string().describe('Success message for document deletion.') }),
+    400: ErrorResponseSchema.describe('Bad Request: Document ID is required.'),
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
     404: ErrorResponseSchema.describe('Not Found: No document with this ID belongs to the user.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to delete document.'),
   },
 
   // === MARKETPLACE ===
@@ -231,10 +241,11 @@ export const apiResponseMap = {
     200: z.array(z.object({
       responderName: z.string(),
       responderCredential: z.string(),
-      accessTime: z.date(),
+      accessTime: z.string().datetime(),
       dataAccessed: z.array(z.string()),
     })).describe('A list of all emergency access events for the user.'),
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to retrieve access logs.'),
   },
 
   // === SETTINGS ===
@@ -246,6 +257,79 @@ export const apiResponseMap = {
     200: UserResponseSchema.describe('The updated user profile settings.'),
     400: ErrorResponseSchema.describe('Validation Error: The request body is malformed.'),
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+  },
+
+  // === QR CODES ===
+  'POST /api/qr/generate': {
+    201: z.object({
+      qrPayload: z.string(),
+      expiresAt: z.string().datetime(),
+      qrCodeId: z.string(),
+    }).describe('QR code generated successfully.'),
+    400: ErrorResponseSchema.describe('Bad Request: Invalid request parameters.'),
+    401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+  },
+  'GET /api/qr/my-codes': {
+    200: z.array(z.object({
+      id: z.string().cuid(),
+      createdAt: z.string().datetime(),
+      isActive: z.boolean(),
+      expiresAt: z.string().datetime(),
+      documentIds: z.array(z.string()),
+      accessType: z.string(),
+      accessCount: z.number().int(),
+    })).describe('List of user\'s QR codes.'),
+    401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to retrieve QR codes.'),
+  },
+  'DELETE /api/qr/:id': {
+    200: z.object({ message: z.literal('QR code revoked successfully') }),
+    401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    404: ErrorResponseSchema.describe('Not Found: QR code not found.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to revoke QR code.'),
+  },
+  'PUT /api/qr/:id/regenerate': {
+    200: z.object({
+      qrPayload: z.string(),
+      expiresAt: z.string().datetime(),
+      qrCodeId: z.string(),
+    }).describe('QR code regenerated successfully.'),
+    401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    404: ErrorResponseSchema.describe('Not Found: QR code not found.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to regenerate QR code.'),
+  },
+  'POST /api/qr/access': {
+    200: z.object({
+      expiresAt: z.string().datetime(),
+      documents: z.array(z.object({
+        id: z.string().cuid(),
+        ipfsHash: z.string().nullable(),
+        category: z.string(),
+        uploadedAt: z.string().datetime(),
+      })),
+      patient: z.object({
+        email: z.string().email(),
+        name: z.string().nullable(),
+        did: z.string().nullable(),
+      }),
+    }).describe('QR code access granted successfully.'),
+    400: ErrorResponseSchema.describe('Bad Request: Invalid QR payload.'),
+    401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    404: ErrorResponseSchema.describe('Not Found: QR code not found or expired.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to process QR access.'),
+  },
+
+  // === DOCUMENT DOWNLOAD ===
+  'GET /api/documents/:id/download': {
+    200: z.object({
+      file: z.string().describe('Base64 encoded file content'),
+      filename: z.string(),
+      mimeType: z.string(),
+    }).describe('Document file downloaded successfully.'),
+    400: ErrorResponseSchema.describe('Bad Request: Document ID is required.'),
+    401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    404: ErrorResponseSchema.describe('Not Found: Document not found.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to download document.'),
   },
 
   // === HEALTH CHECK ===

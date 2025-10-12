@@ -242,6 +242,91 @@ class Web3Service {
       return false
     }
   }
+
+  // ====================================================================================
+  // WRAPPER METHODS FOR BLOCKCHAIN SERVICES
+  // ====================================================================================
+
+  /**
+   * Grant emergency access (wrapper for EmergencyAccessService)
+   * @param patientDID - Patient's DID
+   * @param responder - Responder address
+   * @param responderName - Responder name
+   * @param responderCredential - Responder credential
+   * @param duration - Access duration in seconds
+   * @param accessLevel - Access level (0: BASIC, 1: FULL, 2: CRITICAL)
+   * @param location - Location of emergency
+   * @returns Grant ID and transaction receipt
+   */
+  async grantEmergencyAccess(
+    patientDID: string,
+    responder: string,
+    responderName: string,
+    responderCredential: string,
+    duration: bigint,
+    accessLevel: number,
+    location: string
+  ): Promise<{ grantId: bigint; receipt: ethers.TransactionReceipt }> {
+    try {
+      logInfo('WEB3', 'Granting emergency access', { patientDID, responder, accessLevel })
+      const result = await this.emergencyAccess.grantAccess(
+        patientDID,
+        responder,
+        responderName,
+        responderCredential,
+        duration,
+        accessLevel,
+        location
+      )
+      logSuccess('WEB3', 'Emergency access granted', { grantId: result.grantId.toString() })
+      return result
+    } catch (error) {
+      logError('WEB3', error, { operation: 'grantEmergencyAccess', patientDID, responder })
+      throw error
+    }
+  }
+
+  /**
+   * Apply to study (placeholder - method not implemented in MarketplaceService)
+   * @param studyId - Study ID
+   * @param applicantAddress - Applicant's wallet address
+   * @param applicationData - Application data
+   * @returns Application ID and transaction receipt
+   */
+  async applyToStudy(
+    studyId: bigint,
+    applicantAddress: string,
+    applicationData: string
+  ): Promise<{ applicationId: bigint; receipt: ethers.TransactionReceipt }> {
+    try {
+      logInfo('WEB3', 'Applying to study', { studyId: studyId.toString(), applicantAddress })
+      // TODO: Implement applyToStudy method in MarketplaceService
+      throw new Error('applyToStudy method not yet implemented in MarketplaceService')
+    } catch (error) {
+      logError('WEB3', error, { operation: 'applyToStudy', studyId: studyId.toString(), applicantAddress })
+      throw error
+    }
+  }
+
+  /**
+   * Create DID (placeholder - method not implemented in DIDRegistryService)
+   * @param walletAddress - Wallet address
+   * @param ipfsHash - IPFS hash for DID document
+   * @returns DID and transaction receipt
+   */
+  async createDID(
+    walletAddress: string,
+    ipfsHash: string
+  ): Promise<{ did: string; receipt: ethers.TransactionReceipt }> {
+    try {
+      logInfo('WEB3', 'Creating DID', { walletAddress, ipfsHash })
+      // TODO: Implement createDID method in DIDRegistryService
+      throw new Error('createDID method not yet implemented in DIDRegistryService')
+    } catch (error) {
+      logError('WEB3', error, { operation: 'createDID', walletAddress, ipfsHash })
+      throw error
+    }
+  }
 }
 
 // * Export singleton instance

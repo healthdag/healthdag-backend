@@ -1,13 +1,14 @@
 // * Documents Service - Handles document upload, retrieval, and management with IPFS
-import { PrismaClient, Document, DocumentCategory, RecordCreationStatus } from '@prisma/client'
-import { IPFSService } from '../../core/services/ipfs-service'
+import { PrismaClient, DocumentCategory, RecordCreationStatus } from '@prisma/client'
+import type { Document } from '@prisma/client'
+import { ipfsService, IpfsService } from '../../core/services/ipfs-service'
 import crypto from 'crypto'
 
 export class DocumentsService {
   private prisma: PrismaClient
-  private ipfsService: IPFSService
+  private ipfsService: IpfsService
 
-  constructor(prisma: PrismaClient, ipfsService: IPFSService) {
+  constructor(prisma: PrismaClient, ipfsService: IpfsService) {
     this.prisma = prisma
     this.ipfsService = ipfsService
   }
@@ -45,13 +46,14 @@ export class DocumentsService {
       throw new Error('Wallet not connected')
     }
 
-    // 2. Encrypt file
-    const encryptedFile = this.encryptFile(file)
-
-    // 3. Upload to IPFS
+    // 2. Generate deterministic encryption key from user's DID
+    const encryptionKey = crypto.createHash('sha256').update(user.did).digest()
+    
+    // 3. Upload to IPFS (encryption handled by IPFS service)
     let ipfsHash: string
     try {
-      ipfsHash = await this.ipfsService.uploadFile(encryptedFile)
+      const result = await this.ipfsService.encryptAndUpload(file, encryptionKey)
+      ipfsHash = result.ipfsHash
     } catch (error) {
       throw new Error(`Failed to upload to IPFS: ${error}`)
     }
@@ -239,11 +241,21 @@ export class DocumentsService {
       throw new Error('Document not yet confirmed')
     }
 
-    // Download from IPFS
-    const encryptedFile = await this.ipfsService.getFile(document.ipfsHash)
-
-    // Decrypt
-    const decryptedFile = this.decryptFile(encryptedFile)
+    // Get user's DID for encryption key
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { did: true }
+    })
+    
+    if (!user?.did) {
+      throw new Error('User DID not found')
+    }
+    
+    // Generate deterministic encryption key from user's DID (same as upload)
+    const encryptionKey = crypto.createHash('sha256').update(user.did).digest()
+    
+    // Download from IPFS and decrypt
+    const decryptedFile = await this.ipfsService.downloadAndDecrypt(document.ipfsHash, encryptionKey)
 
     // Determine MIME type from file name
     const mimeType = this.getMimeType(document.fileName || '')

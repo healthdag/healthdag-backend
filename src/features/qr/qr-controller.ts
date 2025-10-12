@@ -1,6 +1,7 @@
 // * QR Controller - Handles QR code HTTP requests
-import { Context } from 'hono'
-import { QRService, QRCodeConfig, ResponderInfo } from '../../core/services/qr-service'
+import type { Context } from 'hono'
+import { QRService } from '../../core/services/qr-service'
+import type { QRCodeConfig, ResponderInfo } from '../../core/services/qr-service'
 import { createApiResponse, createErrorResponse } from '../../core/services/response-factory'
 
 export class QRController {
@@ -54,7 +55,14 @@ export class QRController {
 
       const qrCodes = await this.qrService.getUserQRCodes(userId)
 
-      const response = createApiResponse('GET /api/qr/my-codes', 200, qrCodes)
+      // Convert dates to ISO strings for JSON serialization
+      const formattedQrCodes = qrCodes.map(qr => ({
+        ...qr,
+        createdAt: qr.createdAt.toISOString(),
+        expiresAt: qr.expiresAt.toISOString()
+      }))
+
+      const response = createApiResponse('GET /api/qr/my-codes', 200, formattedQrCodes)
       return c.json(response.payload, response.statusCode as any)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to retrieve QR codes'
@@ -81,7 +89,7 @@ export class QRController {
       return c.json(response.payload, response.statusCode as any)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to revoke QR code'
-      const statusCode = errorMessage.includes('not found') ? 404 : errorMessage.includes('Unauthorized') ? 403 : 400
+      const statusCode = errorMessage.includes('not found') ? 404 : errorMessage.includes('Unauthorized') ? 401 : 500
       const response = createErrorResponse('DELETE /api/qr/:id', statusCode, 'Error', errorMessage)
       return c.json(response.payload, response.statusCode as any)
     }
@@ -110,7 +118,7 @@ export class QRController {
       return c.json(response.payload, response.statusCode as any)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to regenerate QR code'
-      const statusCode = errorMessage.includes('not found') ? 404 : errorMessage.includes('Unauthorized') ? 403 : 400
+      const statusCode = errorMessage.includes('not found') ? 404 : errorMessage.includes('Unauthorized') ? 401 : 500
       const response = createErrorResponse('PUT /api/qr/:id/regenerate', statusCode, 'Error', errorMessage)
       return c.json(response.payload, response.statusCode as any)
     }
@@ -139,7 +147,7 @@ export class QRController {
       const errorMessage = error instanceof Error ? error.message : 'Failed to process QR access'
       const statusCode = errorMessage.includes('Invalid') || errorMessage.includes('expired') ? 400 :
                         errorMessage.includes('not found') ? 404 :
-                        errorMessage.includes('revoked') ? 403 : 400
+                        errorMessage.includes('revoked') ? 404 : 500
       const response = createErrorResponse('POST /api/qr/access', statusCode, 'Error', errorMessage)
       return c.json(response.payload, response.statusCode as any)
     }

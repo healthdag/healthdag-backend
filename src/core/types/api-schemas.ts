@@ -117,6 +117,7 @@ export const RequestAccessSchema = z.object({
     name: z.string().min(1),
     credential: z.string().min(1),
     location: z.string().min(1),
+    address: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid wallet address')
   }),
 })
 export type RequestAccessDto = z.infer<typeof RequestAccessSchema>
@@ -159,3 +160,4 @@ export const DidStatusResponseSchema = z.object({
   did: z.string().nullable()
 })
 export type DidStatusResponse = z.infer<typeof DidStatusResponseSchema>
+

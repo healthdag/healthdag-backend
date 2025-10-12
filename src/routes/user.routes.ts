@@ -6,7 +6,7 @@ import { createUserController } from '../features/user/user-controller'
 import { requireAuth } from '../core/middleware/auth-middleware'
 import { userRateLimit } from '../core/middleware/rate-limit-middleware'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
-import { UserSchema } from '../core/types/api-schemas'
+import { UserResponseSchema } from '../core/types/api-responses'
 import { WalletConnectionRequestSchema, UserUpdateInputSchema } from '../core/types/auth-types'
 
 // * Define the context variables interface
@@ -34,7 +34,7 @@ const getUserRoute = createRoute({
       description: 'User profile retrieved successfully',
       content: {
         'application/json': {
-          schema: UserSchema,
+          schema: UserResponseSchema,
         },
       },
     },
@@ -54,7 +54,9 @@ const getUserRoute = createRoute({
 })
 
 app.openapi(getUserRoute, async (c) => {
-  return await userController.getCurrentUser(c)
+  const response = await userController.getCurrentUser(c)
+  const data = await response.json()
+  return c.json(data, response.status as any)
 })
 
 // === UPDATE USER PROFILE ===
@@ -79,7 +81,7 @@ const updateUserRoute = createRoute({
       description: 'User profile updated successfully',
       content: {
         'application/json': {
-          schema: UserSchema,
+          schema: UserResponseSchema,
         },
       },
     },
@@ -111,7 +113,9 @@ const updateUserRoute = createRoute({
 })
 
 app.openapi(updateUserRoute, async (c) => {
-  return await userController.updateUser(c)
+  const response = await userController.updateUser(c)
+  const data = await response.json()
+  return c.json(data, response.status as any)
 })
 
 // === CONNECT WALLET ===
@@ -136,7 +140,7 @@ const connectWalletRoute = createRoute({
       description: 'Wallet connected successfully',
       content: {
         'application/json': {
-          schema: UserSchema,
+          schema: UserResponseSchema,
         },
       },
     },
@@ -180,7 +184,9 @@ const connectWalletRoute = createRoute({
 })
 
 app.openapi(connectWalletRoute, async (c) => {
-  return await userController.connectWallet(c)
+  const response = await userController.connectWallet(c)
+  const data = await response.json()
+  return c.json(data, response.status as any)
 })
 
 // === CREATE DID ===
@@ -231,7 +237,9 @@ const createDidRoute = createRoute({
 })
 
 app.openapi(createDidRoute, async (c) => {
-  return await userController.createDid(c)
+  const response = await userController.createDid(c)
+  const data = await response.json()
+  return c.json(data, response.status as any)
 })
 
 // === GET DID STATUS ===
@@ -270,7 +278,9 @@ const getDidStatusRoute = createRoute({
 })
 
 app.openapi(getDidStatusRoute, async (c) => {
-  return await userController.getDidStatus(c)
+  const response = await userController.getDidStatus(c)
+  const data = await response.json()
+  return c.json(data, response.status as any)
 })
 
 export default app

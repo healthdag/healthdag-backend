@@ -2,6 +2,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
 import { DashboardService } from '../features/dashboard/dashboard-service'
+import { dashboardController } from '../features/dashboard/dashboard-controller'
 import { prismaService } from '../core/services/prisma-service'
 import { requireAuth, getUserId } from '../core/middleware/auth-middleware'
 

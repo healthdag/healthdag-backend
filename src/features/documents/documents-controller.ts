@@ -1,5 +1,5 @@
 // * Documents Controller - Handles HTTP requests for document management
-import { Context } from 'hono'
+import type { Context } from 'hono'
 import { DocumentsService } from './documents-service'
 import { createApiResponse, createErrorResponse } from '../../core/services/response-factory'
 import { DocumentCategory } from '@prisma/client'
@@ -100,7 +100,14 @@ export class DocumentsController {
 
       const documents = await this.documentsService.getUserDocuments(userId, category)
 
-      const response = createApiResponse('GET /api/documents', 200, documents)
+      // * Convert BigInt onChainId to string for API response
+      const formattedDocuments = documents.map(doc => ({
+        ...doc,
+        onChainId: doc.onChainId ? doc.onChainId.toString() : null,
+        uploadedAt: doc.uploadedAt.toISOString()
+      }))
+
+      const response = createApiResponse('GET /api/documents', 200, formattedDocuments)
       return c.json(response.payload, response.statusCode as any)
     } catch (error: any) {
       console.error('Get documents error:', error)
@@ -134,7 +141,14 @@ export class DocumentsController {
 
       const status = await this.documentsService.getDocumentStatus(documentId, userId)
 
-      const response = createApiResponse('GET /api/documents/:id/status', 200, status)
+      // * Convert BigInt onChainId to string for API response
+      const formattedStatus = {
+        ...status,
+        onChainId: status.onChainId ? status.onChainId.toString() : null,
+        ipfsHash: status.ipfsHash || null
+      }
+
+      const response = createApiResponse('GET /api/documents/:id/status', 200, formattedStatus)
       return c.json(response.payload, response.statusCode as any)
     } catch (error: any) {
       console.error('Get document status error:', error)
@@ -175,7 +189,7 @@ export class DocumentsController {
       const { file, fileName, mimeType } = await this.documentsService.downloadDocument(documentId, userId)
 
       // Return file as response
-      return c.body(file, 200, {
+      return c.body(new Uint8Array(file), 200, {
         'Content-Type': mimeType,
         'Content-Disposition': `attachment; filename="${fileName}"`,
         'Content-Length': file.length.toString()

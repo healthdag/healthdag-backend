@@ -116,20 +116,29 @@ class EmergencyService {
       const qrPayload = this._verifyQrPayload(dto.qrPayload)
       
       // * Step 2: Call web3Service.grantEmergencyAccess
+      const durationSeconds = BigInt(24 * 60 * 60) // 24 hours in seconds
       const grantResult = await this.web3Service.grantEmergencyAccess(
         qrPayload.did,
-        dto.responderInfo
+        dto.responderInfo.address,
+        dto.responderInfo.name,
+        dto.responderInfo.credential,
+        durationSeconds,
+        2, // CRITICAL access level
+        dto.responderInfo.location
       )
+      
+      // * Calculate expiration time from blockchain duration
+      const expiresAt = new Date(Date.now() + Number(durationSeconds) * 1000)
 
       // * Step 3: Create AccessLog in Prisma
       const accessLog = await this.prisma.accessLog.create({
         data: {
-          onChainGrantId: grantResult.onChainGrantId,
+          onChainGrantId: grantResult.grantId,
           responderName: dto.responderInfo.name,
           responderCredential: dto.responderInfo.credential,
           responderLocation: dto.responderInfo.location,
           dataAccessed: qrPayload.dataToInclude,
-          grantExpiresAt: grantResult.expiresAt,
+          grantExpiresAt: expiresAt,
           userId: qrPayload.userId
         }
       })
@@ -195,13 +204,13 @@ class EmergencyService {
         userId: qrPayload.userId,
         responderName: dto.responderInfo.name,
         documentsAccessed: documents.length,
-        grantId: grantResult.onChainGrantId.toString(),
-        expiresAt: grantResult.expiresAt
+        grantId: grantResult.grantId.toString(),
+        expiresAt: expiresAt
       })
 
       return {
         patientData,
-        expiresAt: grantResult.expiresAt
+        expiresAt: expiresAt
       }
     } catch (error) {
       logger.error('Failed to grant emergency access', {

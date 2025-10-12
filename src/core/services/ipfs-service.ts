@@ -199,4 +199,5 @@ class IpfsService {
 
 // * Export singleton instance
 export const ipfsService = IpfsService.getInstance()
+export { IpfsService }
 export default ipfsService
