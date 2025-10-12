@@ -55,7 +55,10 @@ export function signToken(payload: JwtPayload, expiresIn: string = JWT_EXPIRES_I
  */
 export function verifyToken(token: string): JwtResult {
   try {
-    const payload = jwt.verify(token, JWT_SECRET_ASSERTED) as JwtPayload
+    const payload = jwt.verify(token, JWT_SECRET_ASSERTED, {
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE
+    }) as JwtPayload
     return {
       valid: true,
       payload
@@ -145,10 +148,8 @@ export function isTokenExpired(token: string): boolean {
 export function generateAccessToken(userId: string, expiresIn: string = JWT_EXPIRES_IN): string {
   const payload: JwtPayload = {
     sub: userId,
-    iat: Math.floor(Date.now() / 1000),
-    // * Remove exp property - jwt.sign will set it automatically based on expiresIn
-    iss: JWT_ISSUER,
-    aud: JWT_AUDIENCE
+    iat: Math.floor(Date.now() / 1000)
+    // * Remove exp, aud, and iss properties - jwt.sign will set them automatically based on options
   }
   
   return signToken(payload, expiresIn)

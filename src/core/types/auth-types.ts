@@ -63,8 +63,8 @@ export interface JwtPayload {
   sub: string
   iat: number
   exp?: number // * Optional - jwt.sign will set this automatically based on expiresIn
-  iss: string
-  aud: string
+  iss?: string // * Optional - jwt.sign will set this automatically based on issuer option
+  aud?: string // * Optional - jwt.sign will set this automatically based on audience option
 }
 
 export interface JwtResult {
