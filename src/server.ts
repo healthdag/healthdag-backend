@@ -4,6 +4,7 @@ import { cors } from 'hono/cors'
 // Using Bun's built-in server instead of @hono/node-server
 import { swaggerUI } from '@hono/swagger-ui'
 import { Scalar } from '@scalar/hono-api-reference'
+import { logError, logInfo, logSuccess, logWarning } from './core/utils/error-logger'
 import authRoutes from './routes/auth.routes'
 import userRoutes from './routes/user.routes'
 import documentRoutes from './routes/documents.routes'
@@ -20,9 +21,9 @@ const app = new OpenAPIHono()
 // * Middleware setup
 // * Add request logger at the very top
 app.use('*', async (c, next) => {
-  console.log(`📥 Incoming request: ${c.req.method} ${c.req.path}`)
+  logInfo('SERVER', 'Incoming request', { method: c.req.method, path: c.req.path })
   await next()
-  console.log(`📤 Response: ${c.res.status}`)
+  logInfo('SERVER', 'Response sent', { method: c.req.method, path: c.req.path, status: c.res.status })
 })
 
 // * Configure logger based on environment
@@ -31,13 +32,10 @@ app.use('*', logger())
 
 // * Global error handler middleware
 app.onError((err, c) => {
-  console.error('❌ UNHANDLED ERROR:', {
-    message: err.message,
-    stack: err.stack,
+  logError('SERVER', err, {
+    operation: 'global-error-handler',
     path: c.req.path,
-    method: c.req.method,
-    error: err,
-    timestamp: new Date().toISOString()
+    method: c.req.method
   })
 
   // Always return detailed error for now during testing
@@ -55,8 +53,8 @@ app.onError((err, c) => {
 
 // * Debug mode configuration
 if (process.env.DEBUG === 'true') {
-  console.log('🐛 Debug mode enabled')
-  console.log('📊 Environment variables loaded:', {
+  logInfo('SERVER', 'Debug mode enabled')
+  logInfo('SERVER', 'Environment variables loaded', {
     NODE_ENV: process.env.NODE_ENV,
     PORT: process.env.PORT,
     CORS_ORIGIN: process.env.CORS_ORIGIN,
@@ -75,111 +73,85 @@ app.use('*', cors({
 }))
 
 // * Log CORS configuration
-console.log('🌐 CORS Configuration:')
-console.log('  • Allowed Origins:', corsOrigin.join(', '))
-console.log('  • Allowed Methods: GET, POST, PUT, DELETE, OPTIONS')
-console.log('  • Allowed Headers: Content-Type, Authorization, X-Requested-With')
-console.log('  • Credentials: Enabled')
+logInfo('SERVER', 'CORS Configuration', {
+  allowedOrigins: corsOrigin.join(', '),
+  allowedMethods: 'GET, POST, PUT, DELETE, OPTIONS',
+  allowedHeaders: 'Content-Type, Authorization, X-Requested-With',
+  credentials: 'Enabled'
+})
 
 // * Mount API routes with error handling
-console.log('🔌 Mounting API routes...')
+logInfo('SERVER', 'Mounting API routes')
 try {
   app.route('/api/auth', authRoutes)
-  console.log('  ✅ Auth routes mounted')
+  logSuccess('SERVER', 'Auth routes mounted')
 } catch (error) {
-  console.error('  ❌ Failed to mount auth routes:', {
-    message: error instanceof Error ? error.message : 'Unknown error',
-    stack: error instanceof Error ? error.stack : undefined
-  })
+  logError('SERVER', error, { operation: 'mount-auth-routes' })
 }
 
 try {
   app.route('/api/user', userRoutes)
-  console.log('  ✅ User routes mounted')
+  logSuccess('SERVER', 'User routes mounted')
 } catch (error) {
-  console.error('  ❌ Failed to mount user routes:', {
-    message: error instanceof Error ? error.message : 'Unknown error',
-    stack: error instanceof Error ? error.stack : undefined
-  })
+  logError('SERVER', error, { operation: 'mount-user-routes' })
 }
 
 try {
   app.route('/api/documents', documentRoutes)
-  console.log('  ✅ Documents routes mounted')
+  logSuccess('SERVER', 'Documents routes mounted')
 } catch (error) {
-  console.error('  ❌ Failed to mount documents routes:', {
-    message: error instanceof Error ? error.message : 'Unknown error',
-    stack: error instanceof Error ? error.stack : undefined
-  })
+  logError('SERVER', error, { operation: 'mount-documents-routes' })
 }
 
 try {
   app.route('/api/marketplace', marketplaceRoutes)
-  console.log('  ✅ Marketplace routes mounted')
+  logSuccess('SERVER', 'Marketplace routes mounted')
 } catch (error) {
-  console.error('  ❌ Failed to mount marketplace routes:', {
-    message: error instanceof Error ? error.message : 'Unknown error',
-    stack: error instanceof Error ? error.stack : undefined
-  })
+  logError('SERVER', error, { operation: 'mount-marketplace-routes' })
 }
 
 try {
   app.route('/api/emergency', emergencyRoutes)
-  console.log('  ✅ Emergency routes mounted')
+  logSuccess('SERVER', 'Emergency routes mounted')
 } catch (error) {
-  console.error('  ❌ Failed to mount emergency routes:', {
-    message: error instanceof Error ? error.message : 'Unknown error',
-    stack: error instanceof Error ? error.stack : undefined
-  })
+  logError('SERVER', error, { operation: 'mount-emergency-routes' })
 }
 
 try {
   app.route('/api/dashboard', dashboardRoutes)
-  console.log('  ✅ Dashboard routes mounted')
+  logSuccess('SERVER', 'Dashboard routes mounted')
 } catch (error) {
-  console.error('  ❌ Failed to mount dashboard routes:', {
-    message: error instanceof Error ? error.message : 'Unknown error',
-    stack: error instanceof Error ? error.stack : undefined
-  })
+  logError('SERVER', error, { operation: 'mount-dashboard-routes' })
 }
 
 try {
   app.route('/api/access-logs', accessLogsRoutes)
-  console.log('  ✅ Access logs routes mounted')
+  logSuccess('SERVER', 'Access logs routes mounted')
 } catch (error) {
-  console.error('  ❌ Failed to mount access logs routes:', {
-    message: error instanceof Error ? error.message : 'Unknown error',
-    stack: error instanceof Error ? error.stack : undefined
-  })
+  logError('SERVER', error, { operation: 'mount-access-logs-routes' })
 }
 
 try {
   app.route('/api/settings', settingsRoutes)
-  console.log('  ✅ Settings routes mounted')
+  logSuccess('SERVER', 'Settings routes mounted')
 } catch (error) {
-  console.error('  ❌ Failed to mount settings routes:', {
-    message: error instanceof Error ? error.message : 'Unknown error',
-    stack: error instanceof Error ? error.stack : undefined
-  })
+  logError('SERVER', error, { operation: 'mount-settings-routes' })
 }
 
 try {
   app.route('/api/qr', qrRoutes)
-  console.log('  ✅ QR routes mounted')
+  logSuccess('SERVER', 'QR routes mounted')
 } catch (error) {
-  console.error('  ❌ Failed to mount QR routes:', {
-    message: error instanceof Error ? error.message : 'Unknown error',
-    stack: error instanceof Error ? error.stack : undefined
-  })
+  logError('SERVER', error, { operation: 'mount-qr-routes' })
 }
 
 // * Root documentation routes (conditionally enabled)
 if (process.env.ENABLE_DOCS !== 'false') {
-  console.log('📚 Registering API documentation routes...')
+  logInfo('SERVER', 'Registering API documentation routes')
   
   try {
     // OpenAPI spec endpoint
-    console.log('  🔍 Generating OpenAPI spec...')
+    logInfo('SERVER', 'Generating OpenAPI spec')
     app.doc('/doc', {
       openapi: '3.0.0',
       info: {
@@ -198,33 +170,33 @@ if (process.env.ENABLE_DOCS !== 'false') {
         },
       ],
     })
-    console.log('  ✅ OpenAPI spec registered at /doc')
+    logSuccess('SERVER', 'OpenAPI spec registered at /doc')
     
     // Add a test endpoint to verify OpenAPI spec generation
     app.get('/doc-test', (c) => {
       try {
-        console.log('📋 Testing OpenAPI spec generation...')
+        logInfo('SERVER', 'Testing OpenAPI spec generation')
         return c.json({ 
           success: true, 
           message: 'OpenAPI spec is accessible',
           hint: 'Try accessing /doc to see the full spec'
         })
       } catch (error) {
-        console.error('❌ Doc test error:', error)
+        logError('SERVER', error, { operation: 'doc-test' })
         return c.json({ 
           success: false, 
           error: error instanceof Error ? error.message : 'Unknown error' 
         }, 500)
       }
     })
-    console.log('  ✅ OpenAPI spec test endpoint at /doc-test')
+    logSuccess('SERVER', 'OpenAPI spec test endpoint at /doc-test')
     
     // Swagger UI
     app.get('/ui', swaggerUI({ url: '/doc' }))
-    console.log('  ✅ Swagger UI registered at /ui')
+    logSuccess('SERVER', 'Swagger UI registered at /ui')
     
     // Scalar API Reference with error handling
-    console.log('  🎨 Setting up Scalar API Reference...')
+    logInfo('SERVER', 'Setting up Scalar API Reference')
     try {
       app.get('/scalar', 
         Scalar({
@@ -233,13 +205,9 @@ if (process.env.ENABLE_DOCS !== 'false') {
           pageTitle: "HealthLease Hub API Reference"
         })
       )
-      console.log('  ✅ Scalar API Reference registered at /scalar')
+      logSuccess('SERVER', 'Scalar API Reference registered at /scalar')
     } catch (error) {
-      console.error('  ❌ Failed to register Scalar:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        error
-      })
+      logError('SERVER', error, { operation: 'register-scalar' })
       
       // Add fallback error route
       app.get('/scalar', (c) => {
@@ -249,30 +217,28 @@ if (process.env.ENABLE_DOCS !== 'false') {
           hint: 'Try accessing /doc for the raw OpenAPI spec or /ui for Swagger UI'
         }, 500)
       })
-      console.log('  ⚠️ Scalar fallback error route registered')
+      logWarning('SERVER', 'Scalar fallback error route registered')
     }
     
   } catch (error) {
-    console.error('❌ FAILED TO REGISTER DOCUMENTATION ROUTES:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      error
-    })
+    logError('SERVER', error, { operation: 'register-documentation-routes' })
   }
 }
 
 // * Log documentation routes if enabled
 if (process.env.ENABLE_DOCS !== 'false') {
-  console.log('📚 API Documentation routes registered:')
-  console.log('  • Swagger UI: http://localhost:3000/ui')
-  console.log('  • Scalar API Reference: http://localhost:3000/scalar')
-  console.log('  • OpenAPI Spec: http://localhost:3000/doc')
+  logInfo('SERVER', 'API Documentation routes registered', {
+    swaggerUI: 'http://localhost:3000/ui',
+    scalar: 'http://localhost:3000/scalar',
+    openapi: 'http://localhost:3000/doc'
+  })
 } else {
-  console.log('📚 API Documentation disabled (ENABLE_DOCS=false)')
+  logInfo('SERVER', 'API Documentation disabled (ENABLE_DOCS=false)')
 }
 
 // * Health check endpoint
 app.get('/health', (c) => {
+  logInfo('SERVER', 'Health check requested')
   return c.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -282,6 +248,7 @@ app.get('/health', (c) => {
 
 // * Root endpoint
 app.get('/', (c) => {
+  logInfo('SERVER', 'Root endpoint requested')
   const response: any = {
     message: 'HealthLease Hub API',
     version: '1.0.0',
@@ -317,9 +284,11 @@ app.get('/', (c) => {
 // * Export the app for Bun to serve
 const port = Number(process.env.PORT || 3000)
 
-console.log(`🚀 HealthLease server starting on port ${port}`)
-console.log(`✅ HealthLease server running on http://localhost:${port}`)
-console.log(`📚 API Documentation: http://localhost:${port}/ui`)
+logInfo('SERVER', 'HealthLease server starting', { port })
+logSuccess('SERVER', 'HealthLease server running', { 
+  url: `http://localhost:${port}`,
+  documentation: `http://localhost:${port}/ui`
+})
 
 // * Export for Bun to serve
 export default {

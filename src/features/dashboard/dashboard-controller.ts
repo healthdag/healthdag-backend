@@ -2,12 +2,14 @@
 import type { Context } from 'hono'
 import { DashboardService, type DashboardStats } from './dashboard-service'
 import { prismaService } from '../../core/services/prisma-service'
+import { logger } from '../../core/utils/logger'
+import { logError, logInfo, logSuccess, logWarning } from '../../core/utils/error-logger'
+
 // * Simple error response helper
 const createErrorResponse = (message: string) => ({
   error: 'Error',
   message
 })
-import { logger } from '../../core/utils/logger'
 
 // ====================================================================================
 // CONTROLLER CLASS
@@ -17,7 +19,9 @@ export class DashboardController {
   private dashboardService: DashboardService
 
   constructor() {
+    logInfo('DASHBOARD_CONTROLLER', 'Initializing DashboardController')
     this.dashboardService = new DashboardService(prismaService.prisma)
+    logSuccess('DASHBOARD_CONTROLLER', 'DashboardController initialized successfully')
   }
 
   // ====================================================================================
@@ -30,18 +34,22 @@ export class DashboardController {
    * @returns Dashboard statistics response
    */
   async getStats(c: Context) {
+    logInfo('DASHBOARD_CONTROLLER', 'Starting dashboard stats retrieval')
+    
     try {
       // * Extract user ID from JWT token (set by auth middleware)
       const userId = c.get('userId') as string
       
       if (!userId) {
+        logWarning('DASHBOARD_CONTROLLER', 'Stats request without userId')
         return c.json(createErrorResponse('Unauthorized: Missing user ID'), 401)
       }
 
+      logInfo('DASHBOARD_CONTROLLER', 'Getting dashboard statistics', { userId })
       // * Get dashboard statistics
       const stats = await this.dashboardService.getStats(userId)
 
-      logger.info('Dashboard stats retrieved successfully', {
+      logSuccess('DASHBOARD_CONTROLLER', 'Dashboard stats retrieved successfully', {
         userId,
         endpoint: 'GET /api/dashboard/stats'
       })
@@ -49,8 +57,9 @@ export class DashboardController {
       return c.json(stats, 200)
 
     } catch (error) {
-      logger.error('Failed to retrieve dashboard stats', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+      logError('DASHBOARD_CONTROLLER', error, {
+        operation: 'getStats',
+        userId: c.get('userId'),
         endpoint: 'GET /api/dashboard/stats'
       })
 
@@ -68,18 +77,22 @@ export class DashboardController {
    * @returns Recent activity response
    */
   async getActivity(c: Context) {
+    logInfo('DASHBOARD_CONTROLLER', 'Starting dashboard activity retrieval')
+    
     try {
       // * Extract user ID from JWT token (set by auth middleware)
       const userId = c.get('userId') as string
       
       if (!userId) {
+        logWarning('DASHBOARD_CONTROLLER', 'Activity request without userId')
         return c.json(createErrorResponse('Unauthorized: Missing user ID'), 401)
       }
 
+      logInfo('DASHBOARD_CONTROLLER', 'Getting recent activity', { userId })
       // * Get recent activity from service
       const activity = await this.dashboardService.getRecentActivity(userId)
 
-      logger.info('Dashboard activity retrieved successfully', {
+      logSuccess('DASHBOARD_CONTROLLER', 'Dashboard activity retrieved successfully', {
         userId,
         endpoint: 'GET /api/dashboard/activity',
         count: activity.length
@@ -88,8 +101,9 @@ export class DashboardController {
       return c.json(activity, 200)
 
     } catch (error) {
-      logger.error('Failed to retrieve dashboard activity', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+      logError('DASHBOARD_CONTROLLER', error, {
+        operation: 'getActivity',
+        userId: c.get('userId'),
         endpoint: 'GET /api/dashboard/activity'
       })
 
@@ -107,19 +121,27 @@ export class DashboardController {
    * @returns Health status response
    */
   async healthCheck(c: Context) {
+    logInfo('DASHBOARD_CONTROLLER', 'Starting dashboard health check')
+    
     try {
       const health = await this.dashboardService.healthCheck()
       
       if (health.healthy) {
+        logSuccess('DASHBOARD_CONTROLLER', 'Dashboard health check passed')
         return c.json({
           status: 'healthy',
           timestamp: new Date().toISOString(),
           service: 'dashboard'
         }, 200)
       } else {
+        logWarning('DASHBOARD_CONTROLLER', 'Dashboard health check failed', { error: health.error })
         return c.json(createErrorResponse(`Service unhealthy: ${health.error}`), 503)
       }
     } catch (error) {
+      logError('DASHBOARD_CONTROLLER', error, {
+        operation: 'healthCheck'
+      })
+      
       return c.json(createErrorResponse('Health check failed'), 500)
     }
   }

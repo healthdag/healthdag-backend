@@ -2,6 +2,8 @@
 import type { Context } from 'hono'
 import { AuthService, ConflictError, UnauthorizedError, ValidationError } from '../../core/services/auth-service'
 import { createApiResponse, createErrorResponse } from '../../core/services/response-factory'
+import { logger } from '../../core/utils/logger'
+import { logError, logInfo, logSuccess, logWarning } from '../../core/utils/error-logger'
 import type { 
   User, 
   UserCreateInput, 
@@ -38,7 +40,9 @@ export class AuthControllerImpl implements AuthController {
   private authService: AuthService
 
   constructor(authService: AuthService) {
+    logInfo('AUTH_CONTROLLER', 'Initializing AuthController')
     this.authService = authService
+    logSuccess('AUTH_CONTROLLER', 'AuthController initialized successfully')
   }
 
   // ====================================================================================
@@ -51,8 +55,11 @@ export class AuthControllerImpl implements AuthController {
    * @returns Registration response
    */
   async register(c: Context): Promise<Response> {
+    logInfo('AUTH_CONTROLLER', 'Starting user registration')
+    
     try {
       const body = c.get('validatedBody') as UserCreateInput
+      logInfo('AUTH_CONTROLLER', 'Registration request received', { email: body.email })
       
       const user = await this.authService.register(body.email, body.password)
       
@@ -63,24 +70,24 @@ export class AuthControllerImpl implements AuthController {
       
       const response = createApiResponse('POST /api/auth/register', 201, registerResponse)
       
+      logSuccess('AUTH_CONTROLLER', 'User registration successful', { userId: user.id, email: user.email })
       return c.json(response.payload, response.statusCode)
     } catch (error) {
       if (error instanceof ConflictError) {
-        console.log('⚠️ Registration conflict:', error.message)
+        logWarning('AUTH_CONTROLLER', 'Registration conflict', { error: error.message, email: (c.get('validatedBody') as UserCreateInput)?.email })
         const response = createErrorResponse('POST /api/auth/register', 409, 'Conflict', error.message)
         return c.json(response.payload, response.statusCode)
       }
       
       if (error instanceof ValidationError) {
-        console.log('⚠️ Registration validation error:', error.message)
+        logWarning('AUTH_CONTROLLER', 'Registration validation error', { error: error.message, email: (c.get('validatedBody') as UserCreateInput)?.email })
         const response = createErrorResponse('POST /api/auth/register', 400, 'Validation Error', error.message)
         return c.json(response.payload, response.statusCode)
       }
       
-      console.error('❌ REGISTRATION ERROR:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        error
+      logError('AUTH_CONTROLLER', error, {
+        operation: 'register',
+        email: (c.get('validatedBody') as UserCreateInput)?.email
       })
       
       const response = createErrorResponse('POST /api/auth/register', 500, 'Internal Server Error', 'Registration failed')
@@ -98,31 +105,34 @@ export class AuthControllerImpl implements AuthController {
    * @returns Login response
    */
   async login(c: Context): Promise<Response> {
+    logInfo('AUTH_CONTROLLER', 'Starting user login')
+    
     try {
       const body = c.get('validatedBody') as LoginCredentials
+      logInfo('AUTH_CONTROLLER', 'Login request received', { email: body.email })
       
       const result: LoginResult = await this.authService.login(body.email, body.password)
       
       const response = createApiResponse('POST /api/auth/login', 200, result)
       
+      logSuccess('AUTH_CONTROLLER', 'User login successful', { userId: result.user.id, email: result.user.email })
       return c.json(response.payload, response.statusCode)
     } catch (error) {
       if (error instanceof UnauthorizedError) {
-        console.log('⚠️ Login unauthorized:', error.message)
+        logWarning('AUTH_CONTROLLER', 'Login unauthorized', { error: error.message, email: (c.get('validatedBody') as LoginCredentials)?.email })
         const response = createErrorResponse('POST /api/auth/login', 401, 'Unauthorized', error.message)
         return c.json(response.payload, response.statusCode)
       }
       
       if (error instanceof ValidationError) {
-        console.log('⚠️ Login validation error:', error.message)
+        logWarning('AUTH_CONTROLLER', 'Login validation error', { error: error.message, email: (c.get('validatedBody') as LoginCredentials)?.email })
         const response = createErrorResponse('POST /api/auth/login', 400, 'Validation Error', error.message)
         return c.json(response.payload, response.statusCode)
       }
       
-      console.error('❌ LOGIN ERROR:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        error
+      logError('AUTH_CONTROLLER', error, {
+        operation: 'login',
+        email: (c.get('validatedBody') as LoginCredentials)?.email
       })
       
       const response = createErrorResponse('POST /api/auth/login', 500, 'Internal Server Error', 'Login failed')
@@ -140,14 +150,18 @@ export class AuthControllerImpl implements AuthController {
    * @returns Logout response
    */
   async logout(c: Context): Promise<Response> {
+    logInfo('AUTH_CONTROLLER', 'Starting user logout')
+    
     try {
       const userId = c.get('userId')
       
       if (!userId) {
-        console.log('⚠️ Logout attempted without userId')
+        logWarning('AUTH_CONTROLLER', 'Logout attempted without userId')
         const response = createErrorResponse('POST /api/auth/logout', 401, 'Unauthorized', 'No active session to log out from')
         return c.json(response.payload, response.statusCode)
       }
+      
+      logInfo('AUTH_CONTROLLER', 'Logout request received', { userId })
       
       // Extract token from Authorization header for blacklisting
       const authHeader = c.req.header('Authorization')
@@ -161,12 +175,12 @@ export class AuthControllerImpl implements AuthController {
       
       const response = createApiResponse('POST /api/auth/logout', 200, logoutResponse)
       
+      logSuccess('AUTH_CONTROLLER', 'User logout successful', { userId })
       return c.json(response.payload, response.statusCode)
     } catch (error) {
-      console.error('❌ LOGOUT ERROR:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        error
+      logError('AUTH_CONTROLLER', error, {
+        operation: 'logout',
+        userId: c.get('userId')
       })
       
       const response = createErrorResponse('POST /api/auth/logout', 500, 'Internal Server Error', 'Logout failed')

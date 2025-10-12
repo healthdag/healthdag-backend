@@ -1,11 +1,14 @@
 // * DIDRegistry Contract Service
 import { ethers } from 'ethers'
+import { logError, logInfo, logSuccess, logWarning } from '../utils/error-logger'
 
 export class DIDRegistryService {
   private contract: ethers.Contract
 
   constructor(contract: ethers.Contract) {
+    logInfo('DID_REGISTRY', 'Initializing DIDRegistryService')
     this.contract = contract
+    logSuccess('DID_REGISTRY', 'DIDRegistryService initialized successfully')
   }
 
   // ====================================================================================
@@ -18,9 +21,13 @@ export class DIDRegistryService {
    * @returns DID string
    */
   async getDID(userAddress: string): Promise<string> {
+    logInfo('DID_REGISTRY', 'Getting DID for user', { userAddress })
     try {
-      return await this.contract.getDID(userAddress)
+      const did = await this.contract.getDID(userAddress)
+      logSuccess('DID_REGISTRY', 'DID retrieved successfully', { userAddress, did })
+      return did
     } catch (error) {
+      logError('DID_REGISTRY', error, { operation: 'getDID', userAddress })
       throw new Error(`Failed to get DID: ${error}`)
     }
   }
@@ -31,9 +38,13 @@ export class DIDRegistryService {
    * @returns True if DID exists
    */
   async didExists(userAddress: string): Promise<boolean> {
+    logInfo('DID_REGISTRY', 'Checking if DID exists', { userAddress })
     try {
-      return await this.contract.didExists(userAddress)
+      const exists = await this.contract.didExists(userAddress)
+      logSuccess('DID_REGISTRY', 'DID existence checked', { userAddress, exists })
+      return exists
     } catch (error) {
+      logError('DID_REGISTRY', error, { operation: 'didExists', userAddress })
       throw new Error(`Failed to check DID existence: ${error}`)
     }
   }
@@ -44,9 +55,13 @@ export class DIDRegistryService {
    * @returns User's wallet address
    */
   async getAddressByDID(did: string): Promise<string> {
+    logInfo('DID_REGISTRY', 'Getting address by DID', { did })
     try {
-      return await this.contract.getAddressByDID(did)
+      const address = await this.contract.getAddressByDID(did)
+      logSuccess('DID_REGISTRY', 'Address retrieved by DID', { did, address })
+      return address
     } catch (error) {
+      logError('DID_REGISTRY', error, { operation: 'getAddressByDID', did })
       throw new Error(`Failed to get address by DID: ${error}`)
     }
   }
@@ -57,10 +72,14 @@ export class DIDRegistryService {
    * @returns Number of documents
    */
   async getDocumentCount(userAddress: string): Promise<number> {
+    logInfo('DID_REGISTRY', 'Getting document count', { userAddress })
     try {
       const count = await this.contract.getDocumentCount(userAddress)
-      return Number(count)
+      const countNumber = Number(count)
+      logSuccess('DID_REGISTRY', 'Document count retrieved', { userAddress, count: countNumber })
+      return countNumber
     } catch (error) {
+      logError('DID_REGISTRY', error, { operation: 'getDocumentCount', userAddress })
       throw new Error(`Failed to get document count: ${error}`)
     }
   }
@@ -76,15 +95,19 @@ export class DIDRegistryService {
     timestamps: bigint[]
     activeStatus: boolean[]
   }> {
+    logInfo('DID_REGISTRY', 'Getting documents metadata', { userAddress })
     try {
       const result = await this.contract.getDocumentsMetadata(userAddress)
-      return {
+      const metadata = {
         documentIds: result.documentIds,
         categories: result.categories,
         timestamps: result.timestamps,
         activeStatus: result.activeStatus
       }
+      logSuccess('DID_REGISTRY', 'Documents metadata retrieved', { userAddress, documentCount: metadata.documentIds.length })
+      return metadata
     } catch (error) {
+      logError('DID_REGISTRY', error, { operation: 'getDocumentsMetadata', userAddress })
       throw new Error(`Failed to get documents metadata: ${error}`)
     }
   }
@@ -99,13 +122,17 @@ export class DIDRegistryService {
     exists: boolean
     isActive: boolean
   }> {
+    logInfo('DID_REGISTRY', 'Validating document', { userAddress, documentId: documentId.toString() })
     try {
       const result = await this.contract.validateDocument(userAddress, documentId)
-      return {
+      const validation = {
         exists: result.exists,
         isActive: result.isActive
       }
+      logSuccess('DID_REGISTRY', 'Document validation completed', { userAddress, documentId: documentId.toString(), ...validation })
+      return validation
     } catch (error) {
+      logError('DID_REGISTRY', error, { operation: 'validateDocument', userAddress, documentId: documentId.toString() })
       throw new Error(`Failed to validate document: ${error}`)
     }
   }
@@ -120,8 +147,10 @@ export class DIDRegistryService {
    * @returns Transaction receipt with DID
    */
   async createDID(initialDocumentHash: string): Promise<{ did: string; receipt: ethers.TransactionReceipt }> {
+    logInfo('DID_REGISTRY', 'Creating new DID', { initialDocumentHash })
     try {
       const tx = await this.contract.createDID(initialDocumentHash)
+      logInfo('DID_REGISTRY', 'DID creation transaction sent', { txHash: tx.hash })
       const receipt = await tx.wait()
       
       if (!receipt) {

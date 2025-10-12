@@ -1,5 +1,6 @@
 // * JWT utility functions for HealthLease Hub authentication
 import * as jwt from 'jsonwebtoken'
+import { logError, logInfo, logSuccess, logWarning } from './error-logger'
 import type { 
   JwtPayload, 
   JwtResult, 
@@ -20,6 +21,7 @@ const JWT_SECRET = process.env.JWT_SECRET
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m' // Default to 15 minutes as per requirements
 
 if (!JWT_SECRET) {
+  logError('JWT_UTIL', new Error('JWT_SECRET environment variable is required'), { operation: 'initialization' })
   throw new Error('JWT_SECRET environment variable is required')
 }
 
@@ -37,13 +39,17 @@ const JWT_SECRET_ASSERTED = JWT_SECRET as string
  * @returns Signed JWT token
  */
 export function signToken(payload: JwtPayload, expiresIn: string = JWT_EXPIRES_IN): string {
+  logInfo('JWT_UTIL', 'Signing JWT token', { sub: payload.sub, expiresIn })
   try {
-    return jwt.sign(payload, JWT_SECRET_ASSERTED, {
+    const token = jwt.sign(payload, JWT_SECRET_ASSERTED, {
       expiresIn,
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE
     } as jwt.SignOptions)
+    logSuccess('JWT_UTIL', 'JWT token signed successfully', { sub: payload.sub })
+    return token
   } catch (error) {
+    logError('JWT_UTIL', error, { operation: 'signToken', sub: payload.sub })
     throw new Error(`Failed to sign JWT token: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
@@ -54,11 +60,13 @@ export function signToken(payload: JwtPayload, expiresIn: string = JWT_EXPIRES_I
  * @returns JWT verification result
  */
 export function verifyToken(token: string): JwtResult {
+  logInfo('JWT_UTIL', 'Verifying JWT token')
   try {
     const payload = jwt.verify(token, JWT_SECRET_ASSERTED, {
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE
     }) as JwtPayload
+    logSuccess('JWT_UTIL', 'JWT token verified successfully', { sub: payload.sub })
     return {
       valid: true,
       payload
@@ -68,10 +76,15 @@ export function verifyToken(token: string): JwtResult {
     
     if (error instanceof jwt.TokenExpiredError) {
       errorMessage = 'Token has expired'
+      logWarning('JWT_UTIL', 'Token verification failed - expired')
     } else if (error instanceof jwt.JsonWebTokenError) {
       errorMessage = 'Invalid token format'
+      logWarning('JWT_UTIL', 'Token verification failed - invalid format')
     } else if (error instanceof jwt.NotBeforeError) {
       errorMessage = 'Token not active yet'
+      logWarning('JWT_UTIL', 'Token verification failed - not active yet')
+    } else {
+      logError('JWT_UTIL', error, { operation: 'verifyToken' })
     }
     
     return {
@@ -87,23 +100,28 @@ export function verifyToken(token: string): JwtResult {
  * @returns Decoded token parts
  */
 export function decodeToken(token: string): JwtDecoded {
+  logInfo('JWT_UTIL', 'Decoding JWT token')
   try {
     const decoded = jwt.decode(token, { complete: true })
     
     if (!decoded || typeof decoded === 'string') {
+      logWarning('JWT_UTIL', 'Token decode failed - invalid format')
       throw new Error('Invalid token format')
     }
     
     if (!isJwtPayload(decoded.payload)) {
+      logWarning('JWT_UTIL', 'Token decode failed - invalid payload format')
       throw new Error('Invalid payload format')
     }
     
+    logSuccess('JWT_UTIL', 'JWT token decoded successfully', { sub: decoded.payload.sub })
     return {
       header: decoded.header as unknown as Record<string, unknown>,
       payload: decoded.payload,
       signature: decoded.signature
     }
   } catch (error) {
+    logError('JWT_UTIL', error, { operation: 'decodeToken' })
     throw new Error(`Failed to decode token: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
@@ -114,13 +132,20 @@ export function decodeToken(token: string): JwtDecoded {
  * @returns Extracted token or null if not found
  */
 export function extractTokenFromHeader(authHeader: string): string | null {
-  if (!authHeader) return null
+  logInfo('JWT_UTIL', 'Extracting token from Authorization header')
   
-  const parts = authHeader.split(' ')
-  if (parts.length !== 2 || parts[0] !== 'Bearer') {
+  if (!authHeader) {
+    logWarning('JWT_UTIL', 'No Authorization header provided')
     return null
   }
   
+  const parts = authHeader.split(' ')
+  if (parts.length !== 2 || parts[0] !== 'Bearer') {
+    logWarning('JWT_UTIL', 'Invalid Authorization header format')
+    return null
+  }
+  
+  logSuccess('JWT_UTIL', 'Token extracted from Authorization header')
   return parts[1]
 }
 
@@ -130,11 +155,15 @@ export function extractTokenFromHeader(authHeader: string): string | null {
  * @returns True if token is expired, false otherwise
  */
 export function isTokenExpired(token: string): boolean {
+  logInfo('JWT_UTIL', 'Checking if token is expired')
   try {
     const decoded = decodeToken(token)
     const now = Math.floor(Date.now() / 1000)
-    return decoded.payload.exp ? decoded.payload.exp < now : false
-  } catch {
+    const isExpired = decoded.payload.exp ? decoded.payload.exp < now : false
+    logSuccess('JWT_UTIL', 'Token expiration check completed', { isExpired })
+    return isExpired
+  } catch (error) {
+    logWarning('JWT_UTIL', 'Token expiration check failed - considering expired', { error: error instanceof Error ? error.message : 'Unknown error' })
     return true // If we can't decode it, consider it expired
   }
 }
@@ -146,6 +175,7 @@ export function isTokenExpired(token: string): boolean {
  * @returns New JWT access token
  */
 export function generateAccessToken(userId: string, expiresIn: string = JWT_EXPIRES_IN): string {
+  logInfo('JWT_UTIL', 'Generating access token', { userId, expiresIn })
   const payload: JwtPayload = {
     sub: userId,
     iat: Math.floor(Date.now() / 1000)
@@ -161,10 +191,16 @@ export function generateAccessToken(userId: string, expiresIn: string = JWT_EXPI
  * @returns True if token format is valid, false otherwise
  */
 export function isValidTokenFormat(token: string): boolean {
-  if (!token || typeof token !== 'string') return false
+  logInfo('JWT_UTIL', 'Validating token format')
+  if (!token || typeof token !== 'string') {
+    logWarning('JWT_UTIL', 'Token format validation failed - invalid type')
+    return false
+  }
   
   const parts = token.split('.')
-  return parts.length === 3
+  const isValid = parts.length === 3
+  logSuccess('JWT_UTIL', 'Token format validation completed', { isValid })
+  return isValid
 }
 
 // ====================================================================================

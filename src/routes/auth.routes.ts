@@ -7,6 +7,7 @@ import { createAuthController } from '../features/auth/auth-controller'
 import { requireAuth } from '../core/middleware/auth-middleware'
 import { authRateLimit } from '../core/middleware/rate-limit-middleware'
 import { UserCreateInputSchema, LoginCredentialsSchema } from '../core/types/auth-types'
+import { logError, logInfo, logSuccess } from '../core/utils/error-logger'
 import type { Context } from 'hono'
 
 // * Define the context variables interface
@@ -18,22 +19,18 @@ interface AuthContextVariables {
 const app = new OpenAPIHono<{ Variables: AuthContextVariables }>()
 
 // * Initialize services
-console.log('🔧 Initializing auth services...')
+logInfo('AUTH_ROUTES', 'Initializing auth services')
 try {
   const prisma = new PrismaClient()
-  console.log('✅ PrismaClient initialized')
+  logSuccess('AUTH_ROUTES', 'PrismaClient initialized')
   
   const authService = new AuthService(prisma)
-  console.log('✅ AuthService initialized')
+  logSuccess('AUTH_ROUTES', 'AuthService initialized')
   
   var authController = createAuthController(authService)
-  console.log('✅ AuthController initialized')
+  logSuccess('AUTH_ROUTES', 'AuthController initialized')
 } catch (error) {
-  console.error('❌ FAILED TO INITIALIZE AUTH SERVICES:', {
-    message: error instanceof Error ? error.message : 'Unknown error',
-    stack: error instanceof Error ? error.stack : undefined,
-    error
-  })
+  logError('AUTH_ROUTES', error, { operation: 'service-initialization' })
   throw error
 }
 
@@ -92,16 +89,21 @@ const registerRoute = createRoute({
 })
 
 app.openapi(registerRoute, async (c) => {
+  logInfo('AUTH_ROUTES', 'Register route called')
+  
   try {
     const body = await c.req.json()
     const validated = UserCreateInputSchema.parse(body)
     c.set('validatedBody', validated)
-
+    
+    logInfo('AUTH_ROUTES', 'Register request validated', { email: validated.email })
     return await authController.register(c)
   } catch (error) {
     if (error instanceof z.ZodError) {
+      logError('AUTH_ROUTES', error, { operation: 'register-validation', errors: error.errors })
       return c.json({ error: 'Validation Error', message: 'Invalid request body', details: error.errors }, 400)
     }
+    logError('AUTH_ROUTES', error, { operation: 'register' })
     throw error
   }
 })
@@ -169,16 +171,21 @@ const loginRoute = createRoute({
 })
 
 app.openapi(loginRoute, async (c) => {
+  logInfo('AUTH_ROUTES', 'Login route called')
+  
   try {
     const body = await c.req.json()
     const validated = LoginCredentialsSchema.parse(body)
     c.set('validatedBody', validated)
-
+    
+    logInfo('AUTH_ROUTES', 'Login request validated', { email: validated.email })
     return await authController.login(c)
   } catch (error) {
     if (error instanceof z.ZodError) {
+      logError('AUTH_ROUTES', error, { operation: 'login-validation', errors: error.errors })
       return c.json({ error: 'Validation Error', message: 'Invalid request body', details: error.errors }, 400)
     }
+    logError('AUTH_ROUTES', error, { operation: 'login' })
     throw error
   }
 })
@@ -217,6 +224,7 @@ const logoutRoute = createRoute({
 })
 
 app.openapi(logoutRoute, async (c) => {
+  logInfo('AUTH_ROUTES', 'Logout route called', { userId: c.get('userId') })
   return await authController.logout(c)
 })
 

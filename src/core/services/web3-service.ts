@@ -9,6 +9,8 @@ import {
   MarketplaceService, 
   PaymentProcessorService 
 } from '../blockchain'
+import { logger } from '../utils/logger'
+import { logError, logInfo, logSuccess, logWarning } from '../utils/error-logger'
 
 // * Singleton Web3Service class
 class Web3Service {
@@ -24,26 +26,40 @@ class Web3Service {
   public readonly paymentProcessor: PaymentProcessorService
 
   private constructor() {
+    logInfo('WEB3', 'Initializing Web3Service')
+    
     // * Get RPC URL and private key from environment
     const rpcUrl = process.env.RPC_URL
     const privateKey = process.env.PRIVATE_KEY
 
     if (!rpcUrl) {
+      logError('WEB3', new Error('RPC_URL environment variable is required'), { operation: 'constructor' })
       throw new Error('RPC_URL environment variable is required')
     }
 
     if (!privateKey) {
+      logError('WEB3', new Error('PRIVATE_KEY environment variable is required'), { operation: 'constructor' })
       throw new Error('PRIVATE_KEY environment variable is required')
     }
 
     // * Initialize provider and signer
-    this.provider = new ethers.JsonRpcProvider(rpcUrl)
-    this.signer = new ethers.Wallet(privateKey, this.provider)
+    try {
+      logInfo('WEB3', 'Creating provider and signer')
+      this.provider = new ethers.JsonRpcProvider(rpcUrl)
+      this.signer = new ethers.Wallet(privateKey, this.provider)
+      logSuccess('WEB3', 'Provider and signer created successfully')
+    } catch (error) {
+      logError('WEB3', error, { operation: 'provider-signer-init' })
+      throw error
+    }
 
     // * Get contract addresses (from env vars or deployment file)
+    logInfo('WEB3', 'Retrieving contract addresses')
     const addresses = this.getContractAddresses()
+    logSuccess('WEB3', 'Contract addresses retrieved', { addresses })
 
     // * Initialize contract instances
+    logInfo('WEB3', 'Initializing contract instances')
     const didRegistryContract = new ethers.Contract(
       addresses.didRegistry,
       ContractABIs.DIDRegistry,
@@ -73,13 +89,16 @@ class Web3Service {
       ContractABIs.PaymentProcessor,
       this.signer
     )
+    logSuccess('WEB3', 'Contract instances created successfully')
 
     // * Initialize blockchain services
+    logInfo('WEB3', 'Initializing blockchain services')
     this.didRegistry = new DIDRegistryService(didRegistryContract)
     this.dataLease = new DataLeaseService(dataLeaseContract)
     this.emergencyAccess = new EmergencyAccessService(emergencyAccessContract)
     this.marketplace = new MarketplaceService(marketplaceContract)
     this.paymentProcessor = new PaymentProcessorService(paymentProcessorContract)
+    logSuccess('WEB3', 'All blockchain services initialized successfully')
   }
 
   /**
@@ -105,19 +124,23 @@ class Web3Service {
 
     // If all env vars are set, use them
     if (Object.values(fromEnv).every(addr => addr)) {
+      logInfo('WEB3', 'Using contract addresses from environment variables')
       return fromEnv as any
     }
 
     // Otherwise, throw error (deployment config loader requires fs which doesn't work in all environments)
-    throw new Error(
+    const error = new Error(
       'Contract addresses not found in environment variables. ' +
       'Please set DID_REGISTRY_ADDRESS, DATA_LEASE_ADDRESS, EMERGENCY_ACCESS_ADDRESS, ' +
       'MARKETPLACE_ADDRESS, and PAYMENT_PROCESSOR_ADDRESS in your .env file.'
     )
+    logError('WEB3', error, { operation: 'getContractAddresses' })
+    throw error
   }
 
   public static getInstance(): Web3Service {
     if (!Web3Service.instance) {
+      logInfo('WEB3', 'Creating new Web3Service instance')
       Web3Service.instance = new Web3Service()
     }
     return Web3Service.instance
@@ -137,15 +160,20 @@ class Web3Service {
     blockNumber: number
   }> {
     try {
+      logInfo('WEB3', 'Getting network information')
       const network = await this.provider.getNetwork()
       const blockNumber = await this.provider.getBlockNumber()
       
-      return {
+      const info = {
         name: network.name,
         chainId: Number(network.chainId),
         blockNumber
       }
+      
+      logSuccess('WEB3', 'Network info retrieved', info)
+      return info
     } catch (error) {
+      logError('WEB3', error, { operation: 'getNetworkInfo' })
       throw new Error(`Failed to get network info: ${error}`)
     }
   }
@@ -155,7 +183,9 @@ class Web3Service {
    * @returns Signer's wallet address
    */
   getSignerAddress(): string {
-    return this.signer.address
+    const address = this.signer.address
+    logInfo('WEB3', 'Retrieved signer address', { address })
+    return address
   }
 
   /**
@@ -165,8 +195,12 @@ class Web3Service {
    */
   async getBalance(address: string): Promise<bigint> {
     try {
-      return await this.provider.getBalance(address)
+      logInfo('WEB3', 'Getting balance for address', { address })
+      const balance = await this.provider.getBalance(address)
+      logSuccess('WEB3', 'Balance retrieved', { address, balance: balance.toString() })
+      return balance
     } catch (error) {
+      logError('WEB3', error, { operation: 'getBalance', address })
       throw new Error(`Failed to get balance: ${error}`)
     }
   }
@@ -177,7 +211,9 @@ class Web3Service {
    * @returns Formatted ether string
    */
   formatEther(wei: bigint): string {
-    return ethers.formatEther(wei)
+    const formatted = ethers.formatEther(wei)
+    logInfo('WEB3', 'Formatted ether amount', { wei: wei.toString(), formatted })
+    return formatted
   }
 
   /**
@@ -186,7 +222,9 @@ class Web3Service {
    * @returns Amount in wei
    */
   parseEther(ether: string): bigint {
-    return ethers.parseEther(ether)
+    const parsed = ethers.parseEther(ether)
+    logInfo('WEB3', 'Parsed ether amount', { ether, parsed: parsed.toString() })
+    return parsed
   }
 
   /**
@@ -195,10 +233,12 @@ class Web3Service {
    */
   async healthCheck(): Promise<boolean> {
     try {
+      logInfo('WEB3', 'Performing health check')
       await this.provider.getBlockNumber()
+      logSuccess('WEB3', 'Health check passed')
       return true
     } catch (error) {
-      console.error('Web3Service health check failed:', error)
+      logError('WEB3', error, { operation: 'healthCheck' })
       return false
     }
   }

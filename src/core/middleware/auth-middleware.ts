@@ -5,6 +5,7 @@ import { createErrorResponse } from '../services/response-factory'
 import type { ApiEndpoint } from '../types/api-responses'
 import { TokenBlacklistService } from '../services/token-blacklist-service'
 import { PrismaClient } from '@prisma/client'
+import { logError, logInfo, logSuccess, logWarning } from '../utils/error-logger'
 
 // ====================================================================================
 // TYPES & INTERFACES
@@ -46,6 +47,8 @@ export async function authenticateToken(
   next: Next, 
   options: AuthMiddlewareOptions = { required: true }
 ): Promise<Response | void> {
+  logInfo('AUTH_MIDDLEWARE', 'Starting token authentication', { required: options.required })
+  
   try {
     // Extract token from Authorization header
     const authHeader = c.req.header('Authorization')
@@ -53,44 +56,54 @@ export async function authenticateToken(
 
     if (!token) {
       if (options.required) {
+        logWarning('AUTH_MIDDLEWARE', 'Missing authorization header', { path: c.req.path, method: c.req.method })
         // * Return error response directly for middleware
         return c.json({ error: 'Unauthorized', message: 'Missing or invalid authorization header' }, 401)
       }
       // Continue without authentication if not required
+      logInfo('AUTH_MIDDLEWARE', 'Continuing without authentication (not required)')
       await next()
       return
     }
 
     // Verify token
+    logInfo('AUTH_MIDDLEWARE', 'Verifying token')
     const verification = verifyToken(token)
     if (!verification.valid || !verification.payload) {
       if (options.required) {
+        logWarning('AUTH_MIDDLEWARE', 'Token verification failed', { error: verification.error, path: c.req.path })
         // * Return error response directly for middleware
         return c.json({ error: 'Unauthorized', message: verification.error || 'Invalid or expired token' }, 401)
       }
       // Continue without authentication if not required
+      logInfo('AUTH_MIDDLEWARE', 'Continuing without authentication (token invalid but not required)')
       await next()
       return
     }
 
     // Check if token is blacklisted
+    logInfo('AUTH_MIDDLEWARE', 'Checking token blacklist')
     const blacklistService = getTokenBlacklistService()
     const isBlacklisted = await blacklistService.isTokenBlacklisted(token)
     if (isBlacklisted) {
       if (options.required) {
+        logWarning('AUTH_MIDDLEWARE', 'Token is blacklisted', { userId: verification.payload.sub, path: c.req.path })
         // * Return error response directly for middleware
         return c.json({ error: 'Unauthorized', message: 'Token has been revoked' }, 401)
       }
       // Continue without authentication if not required
+      logInfo('AUTH_MIDDLEWARE', 'Continuing without authentication (token blacklisted but not required)')
       await next()
       return
     }
 
     // Attach user ID to context
     c.set('userId', verification.payload.sub)
+    logSuccess('AUTH_MIDDLEWARE', 'Authentication successful', { userId: verification.payload.sub, path: c.req.path })
     
     await next()
   } catch (error) {
+    logError('AUTH_MIDDLEWARE', error, { operation: 'authenticateToken', path: c.req.path, method: c.req.method })
     // * Return error response directly for middleware
     return c.json({ error: 'Unauthorized', message: 'Authentication failed' }, 401)
   }
@@ -102,6 +115,7 @@ export async function authenticateToken(
  * @param next - Next middleware function
  */
 export async function requireAuth(c: Context, next: Next): Promise<Response | void> {
+  logInfo('AUTH_MIDDLEWARE', 'RequireAuth middleware called', { path: c.req.path })
   return authenticateToken(c, next, { required: true })
 }
 
@@ -111,6 +125,7 @@ export async function requireAuth(c: Context, next: Next): Promise<Response | vo
  * @param next - Next middleware function
  */
 export async function optionalAuth(c: Context, next: Next): Promise<Response | void> {
+  logInfo('AUTH_MIDDLEWARE', 'OptionalAuth middleware called', { path: c.req.path })
   return authenticateToken(c, next, { required: false })
 }
 
@@ -120,8 +135,11 @@ export async function optionalAuth(c: Context, next: Next): Promise<Response | v
  * @param next - Next middleware function
  */
 export async function requireAdmin(c: Context, next: Next): Promise<Response | void> {
+  logInfo('AUTH_MIDDLEWARE', 'RequireAdmin middleware called', { path: c.req.path })
+  
   // First require authentication
   const authResult = await requireAuth(c, async () => {
+    logInfo('AUTH_MIDDLEWARE', 'Admin role check (placeholder)', { userId: c.get('userId') })
     // TODO: Implement admin role checking
     // For now, this is a placeholder as the MVP only has one user role
     // * Admin role check passed - continue to next middleware
