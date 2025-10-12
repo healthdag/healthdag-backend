@@ -1,10 +1,19 @@
 // * Document routes with OpenAPI documentation
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { PrismaClient } from '@prisma/client'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
 import { DocumentResponseSchema } from '../core/types/api-responses'
 import { UploadDocumentSchema } from '../core/types/api-schemas'
+import { DocumentsService } from '../features/documents/documents-service'
+import { DocumentsController } from '../features/documents/documents-controller'
+import { ipfsService } from '../core/services/ipfs-service'
 
 const app = new OpenAPIHono()
+
+// * Initialize services
+const prisma = new PrismaClient()
+const documentsService = new DocumentsService(prisma, ipfsService as any)
+const documentsController = new DocumentsController(documentsService)
 
 // === UPLOAD DOCUMENT ===
 const uploadDocumentRoute = createRoute({
@@ -66,30 +75,9 @@ const uploadDocumentRoute = createRoute({
 })
 
 app.openapi(uploadDocumentRoute, async (c) => {
-  try {
-    const formData = await c.req.formData()
-    const file = formData.get('file') as File
-    const category = formData.get('category') as string
-    
-    if (!file || !category) {
-      const response = createErrorResponse('POST /api/documents', 400, 'Bad Request', 'Missing file or category')
-      return c.json(response.payload, response.statusCode as any)
-    }
-    
-    // TODO: Implement actual document upload logic
-    // const result = await documentService.uploadDocument(c.get('user'), file, category)
-    
-    // Mock response for now
-    const response = createApiResponse('POST /api/documents', 202, {
-      id: 'doc_123',
-      status: 'PENDING',
-    })
-    
-    return c.json(response.payload, response.statusCode as any)
-  } catch (error: any) {
-    const response = createErrorResponse('POST /api/documents', 401, 'Unauthorized', 'Missing or invalid JWT')
-    return c.json(response.payload, response.statusCode as any)
-  }
+  const response = await documentsController.uploadDocument(c)
+  const data = await response.json()
+  return c.json(data, response.status as any) as any
 })
 
 // === GET DOCUMENTS ===
@@ -125,39 +113,9 @@ const getDocumentsRoute = createRoute({
 })
 
 app.openapi(getDocumentsRoute, async (c) => {
-  try {
-    // TODO: Implement actual document retrieval logic
-    // const documents = await documentService.getUserDocuments(c.get('user'))
-    
-    // Mock response for now
-    const response = createApiResponse('GET /api/documents', 200, [
-      {
-        id: 'doc_123',
-        userId: 'user_123',
-        onChainId: '123456789',
-        ipfsHash: 'QmHash123...',
-        category: 'LAB_RESULT',
-        isActive: true,
-        creationStatus: 'CONFIRMED',
-        uploadedAt: '2024-01-01T00:00:00.000Z',
-      },
-      {
-        id: 'doc_456',
-        userId: 'user_123',
-        onChainId: '987654321',
-        ipfsHash: 'QmHash456...',
-        category: 'IMAGING',
-        isActive: true,
-        creationStatus: 'CONFIRMED',
-        uploadedAt: '2024-01-02T00:00:00.000Z',
-      },
-    ])
-    
-    return c.json(response.payload, response.statusCode as any)
-  } catch (error: any) {
-    const response = createErrorResponse('GET /api/documents', 401, 'Unauthorized', 'Missing or invalid JWT')
-    return c.json(response.payload, response.statusCode as any)
-  }
+  const response = await documentsController.getDocuments(c)
+  const data = await response.json()
+  return c.json(data, response.status as any) as any
 })
 
 // === GET DOCUMENT STATUS ===
@@ -214,29 +172,9 @@ const getDocumentStatusRoute = createRoute({
 })
 
 app.openapi(getDocumentStatusRoute, async (c) => {
-  try {
-    const { id } = c.req.valid('param')
-    
-    // TODO: Implement actual document status retrieval logic
-    // const status = await documentService.getDocumentStatus(c.get('user'), id)
-    
-    // Mock response for now
-    const response = createApiResponse('GET /api/documents/:id/status', 200, {
-      status: 'CONFIRMED',
-      ipfsHash: 'QmHash123...',
-      onChainId: '123456789',
-    })
-    
-    return c.json(response.payload, response.statusCode as any)
-  } catch (error: any) {
-    if (error.name === 'DocumentNotFoundError') {
-      const response = createErrorResponse('GET /api/documents/:id/status', 404, 'Not Found', 'No document with this ID belongs to the user')
-      return c.json(response.payload, response.statusCode as any)
-    }
-    
-    const response = createErrorResponse('GET /api/documents/:id/status', 401, 'Unauthorized', 'Missing or invalid JWT')
-    return c.json(response.payload, response.statusCode as any)
-  }
+  const response = await documentsController.getDocumentStatus(c)
+  const data = await response.json()
+  return c.json(data, response.status as any) as any
 })
 
 // === DELETE DOCUMENT ===
@@ -291,27 +229,9 @@ const deleteDocumentRoute = createRoute({
 })
 
 app.openapi(deleteDocumentRoute, async (c) => {
-  try {
-    const { id } = c.req.valid('param')
-    
-    // TODO: Implement actual document deletion logic
-    // await documentService.revokeDocument(c.get('user'), id)
-    
-    // Mock response for now
-    const response = createApiResponse('DELETE /api/documents/:id', 200, {
-      message: 'Document revoked successfully.',
-    })
-    
-    return c.json(response.payload, response.statusCode as any)
-  } catch (error: any) {
-    if (error.name === 'DocumentNotFoundError') {
-      const response = createErrorResponse('DELETE /api/documents/:id', 404, 'Not Found', 'No document with this ID belongs to the user')
-      return c.json(response.payload, response.statusCode as any)
-    }
-    
-    const response = createErrorResponse('DELETE /api/documents/:id', 401, 'Unauthorized', 'Missing or invalid JWT')
-    return c.json(response.payload, response.statusCode as any)
-  }
+  const response = await documentsController.deleteDocument(c)
+  const data = await response.json()
+  return c.json(data, response.status as any) as any
 })
 
 export default app

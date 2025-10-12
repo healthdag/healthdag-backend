@@ -1,10 +1,34 @@
 // * Settings routes with OpenAPI documentation
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { PrismaClient } from '@prisma/client'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
 import { UserResponseSchema } from '../core/types/api-responses'
 import { UpdateUserSchema } from '../core/types/api-schemas'
+import { UserService } from '../features/user/user-service'
+import { createUserController } from '../features/user/user-controller'
+import { logError } from '../core/utils/error-logger'
 
 const app = new OpenAPIHono()
+
+// * Initialize services (settings uses user service)
+console.log('🔧 Initializing settings services...')
+try {
+  const prisma = new PrismaClient()
+  console.log('✅ PrismaClient initialized')
+  
+  const userService = new UserService(prisma)
+  console.log('✅ UserService initialized')
+  
+  var userController = createUserController(userService)
+  console.log('✅ UserController initialized for settings')
+} catch (error) {
+  console.error('❌ FAILED TO INITIALIZE SETTINGS SERVICES:', {
+    message: error instanceof Error ? error.message : 'Unknown error',
+    stack: error instanceof Error ? error.stack : undefined,
+    error
+  })
+  throw error
+}
 
 // === GET SETTINGS ===
 const getSettingsRoute = createRoute({
@@ -39,27 +63,10 @@ const getSettingsRoute = createRoute({
 })
 
 app.openapi(getSettingsRoute, async (c) => {
-  try {
-    // TODO: Implement actual settings retrieval logic
-    // const user = await userService.getCurrentUser(c.get('user'))
-    
-    // Mock response for now
-    const response = createApiResponse('GET /api/settings', 200, {
-      id: 'user_123',
-      email: 'user@example.com',
-      name: 'John Doe',
-      walletAddress: '0x1234...5678',
-      did: 'did:example:123456789',
-      didCreationStatus: 'CONFIRMED',
-      createdAt: '2024-01-01T00:00:00.000Z',
-      updatedAt: '2024-01-15T10:30:00.000Z',
-    })
-    
-    return c.json(response.payload, response.statusCode as any)
-  } catch (error: any) {
-    const response = createErrorResponse('GET /api/settings', 401, 'Unauthorized', 'Missing or invalid JWT')
-    return c.json(response.payload, response.statusCode as any)
-  }
+  // Settings GET is just user profile retrieval
+  const response = await userController.getCurrentUser(c)
+  const data = await response.json()
+  return c.json(data, response.status as any) as any
 })
 
 // === UPDATE SETTINGS ===
@@ -116,34 +123,10 @@ const updateSettingsRoute = createRoute({
 })
 
 app.openapi(updateSettingsRoute, async (c) => {
-  try {
-    const body = c.req.valid('json')
-    
-    // TODO: Implement actual settings update logic
-    // const updatedUser = await userService.updateUser(c.get('user'), body)
-    
-    // Mock response for now
-    const response = createApiResponse('PUT /api/settings', 200, {
-      id: 'user_123',
-      email: 'user@example.com',
-      name: body.name || 'John Doe',
-      walletAddress: '0x1234...5678',
-      did: 'did:example:123456789',
-      didCreationStatus: 'CONFIRMED',
-      createdAt: '2024-01-01T00:00:00.000Z',
-      updatedAt: new Date().toISOString(),
-    })
-    
-    return c.json(response.payload, response.statusCode as any)
-  } catch (error: any) {
-    if (error.name === 'ValidationError') {
-      const response = createErrorResponse('PUT /api/settings', 400, 'Validation Error', 'The request body is malformed')
-      return c.json(response.payload, response.statusCode as any)
-    }
-    
-    const response = createErrorResponse('PUT /api/settings', 401, 'Unauthorized', 'Missing or invalid JWT')
-    return c.json(response.payload, response.statusCode as any)
-  }
+  // Settings PUT is just user profile update
+  const response = await userController.updateUser(c)
+  const data = await response.json()
+  return c.json(data, response.status as any) as any
 })
 
 export default app

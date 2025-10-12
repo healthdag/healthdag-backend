@@ -109,37 +109,8 @@ const getActivityRoute = createRoute({
 })
 
 app.openapi(getActivityRoute, async (c) => {
-  try {
-    // TODO: Implement actual activity feed logic
-    // const activities = await dashboardService.getUserActivity(c.get('user'))
-    
-    // Mock response for now
-    const response = createApiResponse('GET /api/dashboard/activity', 200, [
-      {
-        id: 'activity_123',
-        type: 'document_uploaded',
-        description: 'Lab results document uploaded successfully',
-        timestamp: new Date('2024-01-15T10:30:00.000Z').toISOString(),
-      },
-      {
-        id: 'activity_456',
-        type: 'study_applied',
-        description: 'Applied to Cardiovascular Health Study',
-        timestamp: new Date('2024-01-14T15:45:00.000Z').toISOString(),
-      },
-      {
-        id: 'activity_789',
-        type: 'lease_confirmed',
-        description: 'Data lease confirmed for Diabetes Management Research',
-        timestamp: new Date('2024-01-13T09:20:00.000Z').toISOString(),
-      },
-    ])
-    
-    return c.json(response.payload, response.statusCode as any)
-  } catch (error: any) {
-    const response = createErrorResponse('GET /api/dashboard/activity', 401, 'Unauthorized', 'Missing or invalid JWT')
-    return c.json(response.payload, response.statusCode as any)
-  }
+  // Dashboard activity is handled by the dashboard controller
+  return await dashboardController.getActivity(c)
 })
 
 export default app

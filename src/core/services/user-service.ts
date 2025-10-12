@@ -1,10 +1,11 @@
 // * User service for HealthLease Hub
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, DidCreationStatus } from '@prisma/client'
 import { validateWalletConnectionRequest, normalizeAddress } from '../utils/wallet-util'
 import { validateEmail, sanitizeName } from '../utils/validation-util'
-import type { 
-  User, 
-  UserUpdateInput, 
+import { UserDidService } from './user-service-did'
+import type {
+  User,
+  UserUpdateInput,
   WalletConnectionRequest,
   UserStats
 } from '../types/auth-types'
@@ -47,9 +48,11 @@ export class NotFoundError extends Error {
 
 export class UserService {
   private prisma: PrismaClient
+  private didService: UserDidService
 
   constructor(prisma: PrismaClient) {
     this.prisma = prisma
+    this.didService = new UserDidService(prisma)
   }
 
   // ====================================================================================
@@ -312,6 +315,40 @@ export class UserService {
       activeLeases,
       totalEarned
     }
+  }
+
+  // ====================================================================================
+  // DID CREATION
+  // ====================================================================================
+
+  /**
+   * * Initiates DID creation for a user
+   * @param userId - User ID
+   * @returns Updated user with PENDING status
+   */
+  async initiateDidCreation(userId: string): Promise<User> {
+    return await this.didService.initiateDidCreation(userId)
+  }
+
+  /**
+   * * Gets DID creation status for a user
+   * @param userId - User ID
+   * @returns DID status information
+   */
+  async getDidCreationStatus(userId: string): Promise<{
+    status: DidCreationStatus
+    did: string | null
+  }> {
+    return await this.didService.getDidCreationStatus(userId)
+  }
+
+  /**
+   * * Retries failed DID creation
+   * @param userId - User ID
+   * @returns Updated user
+   */
+  async retryDidCreation(userId: string): Promise<User> {
+    return await this.didService.retryDidCreation(userId)
   }
 
   // ====================================================================================

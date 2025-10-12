@@ -18,9 +18,24 @@ interface AuthContextVariables {
 const app = new OpenAPIHono<{ Variables: AuthContextVariables }>()
 
 // * Initialize services
-const prisma = new PrismaClient()
-const authService = new AuthService(prisma)
-const authController = createAuthController(authService)
+console.log('🔧 Initializing auth services...')
+try {
+  const prisma = new PrismaClient()
+  console.log('✅ PrismaClient initialized')
+  
+  const authService = new AuthService(prisma)
+  console.log('✅ AuthService initialized')
+  
+  var authController = createAuthController(authService)
+  console.log('✅ AuthController initialized')
+} catch (error) {
+  console.error('❌ FAILED TO INITIALIZE AUTH SERVICES:', {
+    message: error instanceof Error ? error.message : 'Unknown error',
+    stack: error instanceof Error ? error.stack : undefined,
+    error
+  })
+  throw error
+}
 
 
 // === REGISTER ROUTE ===

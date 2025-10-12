@@ -61,12 +61,15 @@ model User {
     documents         Document[]
     leases            Lease[]
     accessLogs        AccessLog[]
+    qrCodes           QRCode[]
 }
 
 model Document {
     id             String               @id @default(cuid())
     onChainId      BigInt?
     ipfsHash       String?
+    fileName       String?
+    fileSize       Int?
     category       DocumentCategory
     isActive       Boolean              @default(true)
     creationStatus RecordCreationStatus @default(PENDING)
@@ -136,5 +139,25 @@ model BlacklistedToken {
     createdAt DateTime @default(now())
 
     @@index([token])
+    @@index([expiresAt])
+}
+
+model QRCode {
+    id                String   @id @default(cuid())
+    userId            String
+    user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    documentIds       String[] // Array of document IDs to share
+    accessType        String   // 'EMERGENCY' | 'SHARE'
+    qrPayload         String   @db.Text // JWT token for QR
+    expiresAt         DateTime
+    isActive          Boolean  @default(true)
+    accessCount       Int      @default(0) // How many times accessed
+    requireName       Boolean  @default(true)
+    requireCredential Boolean  @default(true)
+    requireLocation   Boolean  @default(true)
+    createdAt         DateTime @default(now())
+    updatedAt         DateTime @updatedAt
+
+    @@index([userId])
     @@index([expiresAt])
 }

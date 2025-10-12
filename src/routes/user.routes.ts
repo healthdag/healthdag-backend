@@ -237,26 +237,9 @@ const createDidRoute = createRoute({
 })
 
 app.openapi(createDidRoute, async (c) => {
-  try {
-    // TODO: Implement actual DID creation logic
-    // const result = await identityService.createDid(c.get('user'))
-    
-    // Mock response for now
-    const response = createApiResponse('POST /api/user/wallet/did', 202, {
-      id: 'did_123',
-      status: 'PENDING',
-    })
-    
-    return c.json(response.payload, response.statusCode as any)
-  } catch (error: any) {
-    if (error.name === 'DidAlreadyExistsError') {
-      const response = createErrorResponse('POST /api/user/wallet/did', 409, 'Conflict', 'User already has a DID, or wallet is not connected')
-      return c.json(response.payload, response.statusCode as any)
-    }
-    
-    const response = createErrorResponse('POST /api/user/wallet/did', 401, 'Unauthorized', 'Missing or invalid JWT')
-    return c.json(response.payload, response.statusCode as any)
-  }
+  const response = await userController.createDid(c)
+  const data = await response.json()
+  return c.json(data, response.status as any) as any
 })
 
 // === GET DID STATUS ===
@@ -295,21 +278,9 @@ const getDidStatusRoute = createRoute({
 })
 
 app.openapi(getDidStatusRoute, async (c) => {
-  try {
-    // TODO: Implement actual DID status retrieval logic
-    // const status = await identityService.getDidStatus(c.get('user'))
-    
-    // Mock response for now
-    const response = createApiResponse('GET /api/user/wallet/did/status', 200, {
-      status: 'CONFIRMED',
-      did: 'did:example:123456789',
-    })
-    
-    return c.json(response.payload, response.statusCode as any)
-  } catch (error: any) {
-    const response = createErrorResponse('GET /api/user/wallet/did/status', 401, 'Unauthorized', 'Missing or invalid JWT')
-    return c.json(response.payload, response.statusCode as any)
-  }
+  const response = await userController.getDidStatus(c)
+  const data = await response.json()
+  return c.json(data, response.status as any) as any
 })
 
 export default app

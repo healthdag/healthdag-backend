@@ -96,6 +96,150 @@ export class DashboardService {
   }
 
   // ====================================================================================
+  // ACTIVITY FEED
+  // ====================================================================================
+
+  /**
+   * * Gets recent activity for a user
+   * @param userId - User ID
+   * @returns Array of recent activities
+   */
+  async getRecentActivity(userId: string): Promise<Array<{
+    id: string
+    type: string
+    description: string
+    timestamp: string
+  }>> {
+    try {
+      const activities: Array<{
+        id: string
+        type: string
+        description: string
+        timestamp: Date
+      }> = []
+
+      // Get recent documents
+      const recentDocuments = await this.prisma.document.findMany({
+        where: {
+          userId,
+          isActive: true
+        },
+        select: {
+          id: true,
+          category: true,
+          uploadedAt: true,
+          creationStatus: true
+        },
+        orderBy: {
+          uploadedAt: 'desc'
+        },
+        take: 10
+      })
+
+      // Add document activities
+      recentDocuments.forEach(doc => {
+        activities.push({
+          id: `doc_${doc.id}`,
+          type: 'document_uploaded',
+          description: `${doc.category.replace('_', ' ').toLowerCase()} document ${doc.creationStatus === 'CONFIRMED' ? 'uploaded successfully' : 'upload in progress'}`,
+          timestamp: doc.uploadedAt
+        })
+      })
+
+      // Get recent leases
+      const recentLeases = await this.prisma.lease.findMany({
+        where: {
+          userId
+        },
+        select: {
+          id: true,
+          status: true,
+          createdAt: true,
+          study: {
+            select: {
+              title: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        take: 10
+      })
+
+      // Add lease activities
+      recentLeases.forEach(lease => {
+        let description = ''
+        if (lease.status === 'Pending') {
+          description = `Applied to ${lease.study.title}`
+        } else if (lease.status === 'Active') {
+          description = `Data lease confirmed for ${lease.study.title}`
+        } else if (lease.status === 'Completed') {
+          description = `Data lease completed for ${lease.study.title}`
+        } else {
+          description = `Lease ${lease.status.toLowerCase()} for ${lease.study.title}`
+        }
+
+        activities.push({
+          id: `lease_${lease.id}`,
+          type: `lease_${lease.status.toLowerCase()}`,
+          description,
+          timestamp: lease.createdAt
+        })
+      })
+
+      // Get recent emergency access logs
+      const recentAccessLogs = await this.prisma.accessLog.findMany({
+        where: {
+          userId
+        },
+        select: {
+          id: true,
+          responderName: true,
+          accessTime: true
+        },
+        orderBy: {
+          accessTime: 'desc'
+        },
+        take: 5
+      })
+
+      // Add access log activities
+      recentAccessLogs.forEach(log => {
+        activities.push({
+          id: `access_${log.id}`,
+          type: 'emergency_access',
+          description: `Emergency access granted to ${log.responderName}`,
+          timestamp: log.accessTime
+        })
+      })
+
+      // Sort all activities by timestamp (most recent first)
+      const sortedActivities = activities
+        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+        .slice(0, 20) // Return top 20 most recent
+        .map(activity => ({
+          ...activity,
+          timestamp: activity.timestamp.toISOString()
+        }))
+
+      logger.info('Dashboard activity retrieved successfully', {
+        userId,
+        count: sortedActivities.length
+      })
+
+      return sortedActivities
+    } catch (error) {
+      logger.error('Failed to retrieve dashboard activity', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        userId
+      })
+
+      throw error
+    }
+  }
+
+  // ====================================================================================
   // HEALTH CHECK
   // ====================================================================================
 

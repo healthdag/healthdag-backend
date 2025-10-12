@@ -66,14 +66,22 @@ export class AuthControllerImpl implements AuthController {
       return c.json(response.payload, response.statusCode)
     } catch (error) {
       if (error instanceof ConflictError) {
+        console.log('⚠️ Registration conflict:', error.message)
         const response = createErrorResponse('POST /api/auth/register', 409, 'Conflict', error.message)
         return c.json(response.payload, response.statusCode)
       }
       
       if (error instanceof ValidationError) {
+        console.log('⚠️ Registration validation error:', error.message)
         const response = createErrorResponse('POST /api/auth/register', 400, 'Validation Error', error.message)
         return c.json(response.payload, response.statusCode)
       }
+      
+      console.error('❌ REGISTRATION ERROR:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        error
+      })
       
       const response = createErrorResponse('POST /api/auth/register', 500, 'Internal Server Error', 'Registration failed')
       return c.json(response.payload, response.statusCode)
@@ -100,14 +108,22 @@ export class AuthControllerImpl implements AuthController {
       return c.json(response.payload, response.statusCode)
     } catch (error) {
       if (error instanceof UnauthorizedError) {
+        console.log('⚠️ Login unauthorized:', error.message)
         const response = createErrorResponse('POST /api/auth/login', 401, 'Unauthorized', error.message)
         return c.json(response.payload, response.statusCode)
       }
       
       if (error instanceof ValidationError) {
+        console.log('⚠️ Login validation error:', error.message)
         const response = createErrorResponse('POST /api/auth/login', 400, 'Validation Error', error.message)
         return c.json(response.payload, response.statusCode)
       }
+      
+      console.error('❌ LOGIN ERROR:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        error
+      })
       
       const response = createErrorResponse('POST /api/auth/login', 500, 'Internal Server Error', 'Login failed')
       return c.json(response.payload, response.statusCode)
@@ -128,6 +144,7 @@ export class AuthControllerImpl implements AuthController {
       const userId = c.get('userId')
       
       if (!userId) {
+        console.log('⚠️ Logout attempted without userId')
         const response = createErrorResponse('POST /api/auth/logout', 401, 'Unauthorized', 'No active session to log out from')
         return c.json(response.payload, response.statusCode)
       }
@@ -146,6 +163,12 @@ export class AuthControllerImpl implements AuthController {
       
       return c.json(response.payload, response.statusCode)
     } catch (error) {
+      console.error('❌ LOGOUT ERROR:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        error
+      })
+      
       const response = createErrorResponse('POST /api/auth/logout', 500, 'Internal Server Error', 'Logout failed')
       return c.json(response.payload, response.statusCode)
     }

@@ -24,6 +24,8 @@ export class TokenBlacklistService {
    */
   private async initializeBlacklist(): Promise<void> {
     try {
+      console.log('🔐 Initializing token blacklist...')
+      
       // Load recently blacklisted tokens (last 24 hours)
       const recentBlacklistedTokens = await this.prisma.blacklistedToken.findMany({
         where: {
@@ -39,9 +41,16 @@ export class TokenBlacklistService {
         this.blacklistedTokens.add(token)
       })
 
-      console.log(`Loaded ${recentBlacklistedTokens.length} blacklisted tokens`)
+      console.log(`✅ Loaded ${recentBlacklistedTokens.length} blacklisted tokens`)
     } catch (error) {
-      console.error('Failed to initialize token blacklist:', error)
+      console.error('❌ FAILED TO INITIALIZE TOKEN BLACKLIST:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        error,
+        prismaAvailable: !!this.prisma,
+        blacklistedTokenModelAvailable: !!(this.prisma as any)?.blacklistedToken
+      })
+      // Don't throw - allow service to start even if blacklist initialization fails
     }
   }
 

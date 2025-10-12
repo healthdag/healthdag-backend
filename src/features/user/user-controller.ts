@@ -234,6 +234,80 @@ export class UserControllerImpl implements UserController {
       return c.json(response.payload, response.statusCode)
     }
   }
+
+  // ====================================================================================
+  // DID MANAGEMENT
+  // ====================================================================================
+
+  /**
+   * * Initiates DID creation for the current user
+   * @param c - Hono context
+   * @returns DID creation initiation response
+   */
+  async createDid(c: Context): Promise<Response> {
+    try {
+      const userId = c.get('userId')
+      
+      if (!userId) {
+        const response = createErrorResponse('POST /api/user/wallet/did', 401, 'Unauthorized', 'Missing or invalid JWT')
+        return c.json(response.payload, response.statusCode)
+      }
+      
+      const updatedUser: User = await this.userService.initiateDidCreation(userId)
+      
+      const response = createApiResponse('POST /api/user/wallet/did', 202, {
+        id: updatedUser.id,
+        status: updatedUser.didCreationStatus
+      })
+      
+      return c.json(response.payload, response.statusCode)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      
+      if (errorMessage.includes('Wallet address is required') || errorMessage.includes('already has a DID') || errorMessage.includes('already in progress')) {
+        const response = createErrorResponse('POST /api/user/wallet/did', 409, 'Conflict', errorMessage)
+        return c.json(response.payload, response.statusCode)
+      }
+      
+      if (error instanceof NotFoundError) {
+        const response = createErrorResponse('POST /api/user/wallet/did', 404, 'Not Found', error.message)
+        return c.json(response.payload, response.statusCode)
+      }
+      
+      const response = createErrorResponse('POST /api/user/wallet/did', 500, 'Internal Server Error', 'Failed to initiate DID creation')
+      return c.json(response.payload, response.statusCode)
+    }
+  }
+
+  /**
+   * * Gets the DID creation status for the current user
+   * @param c - Hono context
+   * @returns DID status response
+   */
+  async getDidStatus(c: Context): Promise<Response> {
+    try {
+      const userId = c.get('userId')
+      
+      if (!userId) {
+        const response = createErrorResponse('GET /api/user/wallet/did/status', 401, 'Unauthorized', 'Missing or invalid JWT')
+        return c.json(response.payload, response.statusCode)
+      }
+      
+      const status = await this.userService.getDidCreationStatus(userId)
+      
+      const response = createApiResponse('GET /api/user/wallet/did/status', 200, status)
+      
+      return c.json(response.payload, response.statusCode)
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        const response = createErrorResponse('GET /api/user/wallet/did/status', 404, 'Not Found', error.message)
+        return c.json(response.payload, response.statusCode)
+      }
+      
+      const response = createErrorResponse('GET /api/user/wallet/did/status', 500, 'Internal Server Error', 'Failed to retrieve DID status')
+      return c.json(response.payload, response.statusCode)
+    }
+  }
 }
 
 // ====================================================================================

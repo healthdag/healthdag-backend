@@ -76,25 +76,13 @@ export class DashboardController {
         return c.json(createErrorResponse('Unauthorized: Missing user ID'), 401)
       }
 
-      // * Get recent activity (placeholder implementation)
-      const activity = [
-        {
-          id: '1',
-          type: 'document_upload',
-          description: 'Lab results uploaded',
-          timestamp: new Date().toISOString()
-        },
-        {
-          id: '2', 
-          type: 'lease_created',
-          description: 'Applied to study: Diabetes Research',
-          timestamp: new Date(Date.now() - 3600000).toISOString()
-        }
-      ]
+      // * Get recent activity from service
+      const activity = await this.dashboardService.getRecentActivity(userId)
 
       logger.info('Dashboard activity retrieved successfully', {
         userId,
-        endpoint: 'GET /api/dashboard/activity'
+        endpoint: 'GET /api/dashboard/activity',
+        count: activity.length
       })
 
       return c.json(activity, 200)
