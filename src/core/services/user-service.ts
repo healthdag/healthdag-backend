@@ -318,6 +318,83 @@ export class UserService {
     }
   }
 
+  /**
+   * * Gets user's leases with their statuses and metadata
+   * @param userId - User identifier
+   * @returns Array of user leases with study details
+   * @throws Error if user not found
+   */
+  async getUserLeases(userId: string): Promise<any[]> {
+    try {
+      // Validate user exists
+      const existingUser = await this.findById(userId)
+      if (!existingUser) {
+        throw new NotFoundError('User not found')
+      }
+
+      const leases = await this.prisma.lease.findMany({
+        where: { userId },
+        include: {
+          study: {
+            select: {
+              id: true,
+              onChainId: true,
+              title: true,
+              description: true,
+              researcherAddress: true,
+              paymentPerUser: true,
+              participantsNeeded: true,
+              participantsEnrolled: true,
+              status: true,
+              metadataHash: true,
+              irbApprovalHash: true,
+              createdAt: true,
+              updatedAt: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+
+      // * Transform the data to include metadata and status information
+      return leases.map(lease => ({
+        id: lease.id,
+        onChainId: lease.onChainId.toString(),
+        paymentAmount: lease.paymentAmount.toString(),
+        startTime: lease.startTime.toISOString(),
+        endTime: lease.endTime.toISOString(),
+        status: lease.status,
+        createdAt: lease.createdAt.toISOString(),
+        updatedAt: lease.updatedAt.toISOString(),
+        study: {
+          id: lease.study.id,
+          onChainId: lease.study.onChainId.toString(),
+          title: lease.study.title,
+          description: lease.study.description,
+          researcherAddress: lease.study.researcherAddress,
+          paymentPerUser: lease.study.paymentPerUser.toString(),
+          participantsNeeded: lease.study.participantsNeeded,
+          participantsEnrolled: lease.study.participantsEnrolled,
+          status: lease.study.status,
+          metadataHash: lease.study.metadataHash,
+          irbApprovalHash: lease.study.irbApprovalHash,
+          createdAt: lease.study.createdAt.toISOString(),
+          updatedAt: lease.study.updatedAt.toISOString()
+        },
+        // * Additional metadata
+        isActive: lease.status === 'Active',
+        isExpired: new Date() > lease.endTime,
+        daysRemaining: Math.max(0, Math.ceil((lease.endTime.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))),
+        totalDuration: Math.ceil((lease.endTime.getTime() - lease.startTime.getTime()) / (1000 * 60 * 60 * 24))
+      }))
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error
+      }
+      throw new Error(`Failed to get user leases: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
   // ====================================================================================
   // DID CREATION
   // ====================================================================================

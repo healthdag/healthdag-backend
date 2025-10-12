@@ -6,7 +6,7 @@ import { createUserController } from '../features/user/user-controller'
 import { requireAuth } from '../core/middleware/auth-middleware'
 import { userRateLimit } from '../core/middleware/rate-limit-middleware'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
-import { UserResponseSchema } from '../core/types/api-responses'
+import { UserResponseSchema, UserLeasesResponseSchema } from '../core/types/api-responses'
 import { WalletConnectionRequestSchema, UserUpdateInputSchema } from '../core/types/auth-types'
 import { DidCreationStatusEnum } from '../core/types/api-schemas'
 
@@ -283,6 +283,68 @@ const getDidStatusRoute = createRoute({
 
 app.openapi(getDidStatusRoute, async (c) => {
   const response = await userController.getDidStatus(c)
+  const data = await response.json()
+  return c.json(data, response.status as any)
+})
+
+// === GET USER LEASES ===
+const getUserLeasesRoute = createRoute({
+  method: 'get',
+  path: '/leases',
+  tags: ['User & Wallet'],
+  summary: 'Get user leases',
+  description: 'Retrieves all leases for the current user with their statuses and metadata',
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: 'User leases retrieved successfully',
+      content: {
+        'application/json': {
+          schema: UserLeasesResponseSchema,
+        },
+      },
+    },
+    401: {
+      description: 'Unauthorized',
+      content: {
+        'application/json': {
+          schema: z.object({
+            error: z.string(),
+            message: z.string(),
+            details: z.any().optional(),
+          }),
+        },
+      },
+    },
+    404: {
+      description: 'Not Found',
+      content: {
+        'application/json': {
+          schema: z.object({
+            error: z.string(),
+            message: z.string(),
+            details: z.any().optional(),
+          }),
+        },
+      },
+    },
+    500: {
+      description: 'Internal Server Error',
+      content: {
+        'application/json': {
+          schema: z.object({
+            error: z.string(),
+            message: z.string(),
+            details: z.any().optional(),
+          }),
+        },
+      },
+    },
+  },
+})
+
+app.openapi(getUserLeasesRoute, async (c) => {
+  const response = await userController.getUserLeases(c)
   const data = await response.json()
   return c.json(data, response.status as any)
 })

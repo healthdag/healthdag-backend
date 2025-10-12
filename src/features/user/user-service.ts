@@ -310,6 +310,73 @@ export class UserService {
       throw error
     }
   }
+
+  /**
+   * Gets user's leases with their statuses and metadata
+   * @param userId - User identifier
+   * @returns Array of user leases with study details
+   * @throws Error if user not found
+   */
+  async getUserLeases(userId: string): Promise<any[]> {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId }
+      })
+
+      if (!user) {
+        throw new Error(`User with ID ${userId} not found`)
+      }
+
+      const leases = await this.prisma.lease.findMany({
+        where: { userId },
+        include: {
+          study: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              researcherAddress: true,
+              paymentPerUser: true,
+              status: true,
+              createdAt: true,
+              updatedAt: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+
+      // * Transform the data to include metadata and status information
+      return leases.map(lease => ({
+        id: lease.id,
+        onChainId: lease.onChainId.toString(),
+        paymentAmount: lease.paymentAmount.toString(),
+        startTime: lease.startTime.toISOString(),
+        endTime: lease.endTime.toISOString(),
+        status: lease.status,
+        createdAt: lease.createdAt.toISOString(),
+        updatedAt: lease.updatedAt.toISOString(),
+        study: {
+          id: lease.study.id,
+          title: lease.study.title,
+          description: lease.study.description,
+          researcherAddress: lease.study.researcherAddress,
+          paymentPerUser: lease.study.paymentPerUser.toString(),
+          status: lease.study.status,
+          createdAt: lease.study.createdAt.toISOString(),
+          updatedAt: lease.study.updatedAt.toISOString()
+        },
+        // * Additional metadata
+        isActive: lease.status === 'Active',
+        isExpired: new Date() > lease.endTime,
+        daysRemaining: Math.max(0, Math.ceil((lease.endTime.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))),
+        totalDuration: Math.ceil((lease.endTime.getTime() - lease.startTime.getTime()) / (1000 * 60 * 60 * 24))
+      }))
+    } catch (error) {
+      logger.error('Failed to get user leases', { error: (error as Error).message, userId })
+      throw error
+    }
+  }
 }
 
 // * Export singleton instance

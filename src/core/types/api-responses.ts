@@ -10,7 +10,7 @@ import { DidCreationStatusEnum, RecordCreationStatusEnum, DocumentCategoryEnum }
 // --- Standard Error Response ---
 // Used for all 4xx and 5xx errors to ensure a consistent error format.
 export const ErrorResponseSchema = z.object({
-  error: z.string().describe("A high-level error category, e.g., 'Validation Error'"),
+  error: z.string().describe('A high-level error category, e.g., Validation Error'),
   message: z.string().describe('A detailed, human-readable error message.'),
   details: z.any().optional().describe('Optional structured data, e.g., validation issues.'),
 })
@@ -68,6 +68,31 @@ export const StudyResponseSchema = z.object({
   irbApprovalHash: z.string(),
 })
 export type StudyResponse = z.infer<typeof StudyResponseSchema>
+
+// --- Lease Object ---
+export const LeaseResponseSchema = z.object({
+  id: z.string().cuid(),
+  onChainId: z.string(),
+  paymentAmount: z.string().describe('Payment amount as a string, e.g., "75.00"'),
+  startTime: z.string().datetime(),
+  endTime: z.string().datetime(),
+  status: z.enum(['Pending', 'Active', 'Expired', 'Revoked', 'Completed']),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  study: StudyResponseSchema,
+  // * Additional metadata
+  isActive: z.boolean(),
+  isExpired: z.boolean(),
+  daysRemaining: z.number().int().min(0),
+  totalDuration: z.number().int().min(0),
+})
+export type LeaseResponse = z.infer<typeof LeaseResponseSchema>
+
+// --- User Leases Response ---
+export const UserLeasesResponseSchema = z.object({
+  leases: z.array(LeaseResponseSchema),
+})
+export type UserLeasesResponse = z.infer<typeof UserLeasesResponseSchema>
 
 // ====================================================================================
 // 2. THE COMPLETE API RESPONSE MAP
@@ -147,6 +172,12 @@ export const apiResponseMap = {
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
     404: ErrorResponseSchema.describe('Not Found: User not found.'),
     500: ErrorResponseSchema.describe('Internal Server Error: Failed to retrieve DID status.'),
+  },
+  'GET /api/user/leases': {
+    200: UserLeasesResponseSchema.describe('A list of the user\'s leases with statuses and metadata.'),
+    401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    404: ErrorResponseSchema.describe('Not Found: User not found.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to retrieve user leases.'),
   },
 
   // === DOCUMENTS ===

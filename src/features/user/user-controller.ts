@@ -24,6 +24,7 @@ export interface UserController {
   getUserStats(c: Context): Promise<Response>
   createDid(c: Context): Promise<Response>
   getDidStatus(c: Context): Promise<Response>
+  getUserLeases(c: Context): Promise<Response>
 }
 
 // ====================================================================================
@@ -308,6 +309,36 @@ export class UserControllerImpl implements UserController {
       }
       
       const response = createErrorResponse('GET /api/user/wallet/did/status', 500, 'Internal Server Error', 'Failed to retrieve DID status')
+      return c.json(response.payload, response.statusCode)
+    }
+  }
+
+  /**
+   * * Gets the current user's leases with statuses and metadata
+   * @param c - Hono context
+   * @returns User leases response
+   */
+  async getUserLeases(c: Context): Promise<Response> {
+    try {
+      const userId = c.get('userId')
+      
+      if (!userId) {
+        const response = createErrorResponse('GET /api/user/leases', 401, 'Unauthorized', 'Missing or invalid JWT')
+        return c.json(response.payload, response.statusCode)
+      }
+      
+      const leases = await this.userService.getUserLeases(userId)
+      
+      const response = createApiResponse('GET /api/user/leases', 200, { leases })
+      
+      return c.json(response.payload, response.statusCode)
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        const response = createErrorResponse('GET /api/user/leases', 404, 'Not Found', error.message)
+        return c.json(response.payload, response.statusCode)
+      }
+      
+      const response = createErrorResponse('GET /api/user/leases', 500, 'Internal Server Error', 'Failed to retrieve user leases')
       return c.json(response.payload, response.statusCode)
     }
   }
