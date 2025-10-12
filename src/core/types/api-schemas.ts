@@ -144,3 +144,18 @@ export const UpdateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
 })
 export type UpdateUser = z.infer<typeof UpdateUserSchema>
+
+// Wallet connection schema
+export const ConnectWalletSchema = z.object({
+  walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid wallet address'),
+  message: z.string().min(1),
+  signature: z.string().regex(/^0x[a-fA-F0-9]{130}$/, 'Invalid signature format')
+})
+export type ConnectWalletDto = z.infer<typeof ConnectWalletSchema>
+
+// DID status response schema
+export const DidStatusResponseSchema = z.object({
+  status: DidCreationStatusEnum,
+  did: z.string().nullable()
+})
+export type DidStatusResponse = z.infer<typeof DidStatusResponseSchema>
