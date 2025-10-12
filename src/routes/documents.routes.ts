@@ -32,8 +32,8 @@ const uploadDocumentRoute = createRoute({
       content: {
         'multipart/form-data': {
           schema: z.object({
-            file: z.instanceof(File),
-            category: z.enum(['LAB_RESULT', 'IMAGING', 'PRESCRIPTION', 'VISIT_NOTES']),
+            file: z.instanceof(File).describe('Medical document file to upload (PDF, DOCX, or image formats)'),
+            category: z.enum(['LAB_RESULT', 'IMAGING', 'PRESCRIPTION', 'VISIT_NOTES']).describe('Document category: LAB_RESULT (blood tests, lab reports), IMAGING (X-rays, MRIs, CT scans), PRESCRIPTION (medication records), VISIT_NOTES (doctor visit summaries)'),
           }),
         },
       },

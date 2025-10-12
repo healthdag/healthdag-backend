@@ -157,17 +157,17 @@ export interface UserStats {
 // * UserSchema imported from existing schema to avoid duplication
 
 export const UserCreateInputSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters')
+  email: z.string().email('Invalid email address').describe('User\'s email address for account login (e.g., "user@example.com")'),
+  password: z.string().min(8, 'Password must be at least 8 characters').describe('Secure password for account access (minimum 8 characters, recommended: mix of letters, numbers, and symbols)')
 })
 
 export const UserUpdateInputSchema = z.object({
-  name: z.string().min(1).max(100).optional()
+  name: z.string().min(1).max(100).optional().describe('User\'s display name for profile (e.g., "Dr. Sarah Johnson", "John Smith")')
 })
 
 export const LoginCredentialsSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required')
+  email: z.string().email('Invalid email address').describe('User\'s registered email address (e.g., "user@example.com")'),
+  password: z.string().min(1, 'Password is required').describe('User\'s account password')
 })
 
 export const JwtPayloadSchema = z.object({
@@ -179,9 +179,9 @@ export const JwtPayloadSchema = z.object({
 })
 
 export const WalletConnectionRequestSchema = z.object({
-  walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid wallet address'),
-  message: z.string().min(1),
-  signature: z.string().regex(/^0x[a-fA-F0-9]{130}$/, 'Invalid signature format')
+  walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum wallet address').describe('Ethereum wallet address to connect (e.g., "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6")'),
+  message: z.string().min(1).describe('Signed message containing timestamp for verification (User ID optional). Examples: "Connect wallet to HealthDAG\nTimestamp: 1760275088336" or "Welcome to HealthLease Hub!\nUser ID: cmgnok9tf0000j5ra45hzchsr\nTimestamp: 1760275088336"'),
+  signature: z.string().regex(/^0x[a-fA-F0-9]{130}$/, 'Invalid signature format').describe('Cryptographic signature proving wallet ownership')
 })
 
 export const PasswordValidationResultSchema = z.object({

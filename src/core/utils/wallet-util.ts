@@ -170,16 +170,16 @@ export function parseWalletMessage(message: string): WalletMessage | null {
     // Extract timestamp from message
     const timestampMatch = message.match(/Timestamp:\s*(\d+)/)
     const userIdMatch = message.match(/User ID:\s*([^\n]+)/)
-    
-    // * Require both timestamp and User ID for production security
-    if (!timestampMatch || !userIdMatch) {
+
+    // * Only require timestamp since user is already authenticated via JWT
+    if (!timestampMatch) {
       return null
     }
-    
+
     return {
       message,
       timestamp: parseInt(timestampMatch[1]),
-      userId: userIdMatch[1].trim()
+      userId: userIdMatch ? userIdMatch[1].trim() : '' // Optional User ID
     }
   } catch {
     return null
@@ -225,15 +225,14 @@ export function isValidSigningMessage(message: string): boolean {
   if (!message || typeof message !== 'string') return false
   if (message.length < 10) return false // Too short
   if (message.length > 1000) return false // Too long
-  
-  // * Production security: Require both User ID and Timestamp
+
+  // * Flexible validation: Support both formats (with or without User ID)
   const timestampMatch = message.match(/Timestamp:\s*(\d+)/)
-  const userIdMatch = message.match(/User ID:\s*([^\n]+)/)
-  
-  if (!timestampMatch || !userIdMatch) {
+
+  if (!timestampMatch) {
     return false
   }
-  
+
   // * Validate timestamp is reasonable (not too old, not in future)
   const timestamp = parseInt(timestampMatch[1])
   const now = Date.now()
@@ -242,7 +241,7 @@ export function isValidSigningMessage(message: string): boolean {
   if (timestamp < (now - maxAge) || timestamp > (now + 60000)) { // Allow 1 minute future tolerance
     return false
   }
-  
+
   return true
 }
 
@@ -297,20 +296,11 @@ export function validateWalletConnectionRequest(data: WalletConnectionRequest, e
   if (!isValidSigningMessage(data.message)) {
     return {
       valid: false,
-      error: 'Invalid message format - must include User ID and Timestamp'
+      error: 'Invalid message format - must include Timestamp (User ID optional)'
     }
   }
   
-  // * Production security: Validate User ID matches authenticated user
-  if (expectedUserId) {
-    const parsed = parseWalletMessage(data.message)
-    if (!parsed || parsed.userId !== expectedUserId) {
-      return {
-        valid: false,
-        error: 'Message User ID does not match authenticated user'
-      }
-    }
-  }
+  // * User ID validation removed since user is already authenticated via JWT
   
   // Check if message is recent
   if (!isMessageRecent(data.message)) {

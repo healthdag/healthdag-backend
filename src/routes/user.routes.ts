@@ -69,7 +69,7 @@ const updateUserRoute = createRoute({
   path: '/me',
   tags: ['User & Wallet'],
   summary: 'Update user profile',
-  description: 'Updates the user profile settings',
+  description: 'Updates the user profile settings (currently supports updating display name)',
   security: [{ bearerAuth: [] }],
   request: {
     body: {
@@ -128,7 +128,7 @@ const connectWalletRoute = createRoute({
   path: '/wallet/connect',
   tags: ['User & Wallet'],
   summary: 'Connect wallet to user account',
-  description: 'Verifies wallet signature and links wallet address to user account',
+  description: 'Verifies wallet signature and links Ethereum wallet address to user account for blockchain operations',
   security: [{ bearerAuth: [] }],
   request: {
     body: {
@@ -199,7 +199,7 @@ const createDidRoute = createRoute({
   path: '/wallet/did',
   tags: ['User & Wallet'],
   summary: 'Create decentralized identity',
-  description: 'Creates the user\'s Decentralized Identity (DID) on the blockchain',
+  description: 'Creates the user\'s Decentralized Identity (DID) on the blockchain for secure data sharing and verification',
   security: [{ bearerAuth: [] }],
   responses: {
     202: {
@@ -252,7 +252,7 @@ const getDidStatusRoute = createRoute({
   path: '/wallet/did/status',
   tags: ['User & Wallet'],
   summary: 'Get DID creation status',
-  description: 'Retrieves the current status of DID creation',
+  description: 'Retrieves the current status of DID creation process (NONE, PENDING, CONFIRMED, or FAILED)',
   security: [{ bearerAuth: [] }],
   responses: {
     200: {

@@ -102,7 +102,7 @@ export type AccessLog = z.infer<typeof AccessLogSchema>
 // import { UserCreateInputSchema, LoginCredentialsSchema, UserUpdateInputSchema, WalletConnectionRequestSchema } from './auth-types'
 
 export const UploadDocumentSchema = z.object({
-  category: z.enum(['LAB_RESULT', 'IMAGING', 'PRESCRIPTION', 'VISIT_NOTES']),
+  category: z.enum(['LAB_RESULT', 'IMAGING', 'PRESCRIPTION', 'VISIT_NOTES']).describe('Medical document category (e.g., "LAB_RESULT" for blood tests, "IMAGING" for X-rays/MRIs, "PRESCRIPTION" for medication records, "VISIT_NOTES" for doctor visit summaries)'),
 })
 export type UploadDocumentDto = z.infer<typeof UploadDocumentSchema>
 
@@ -142,15 +142,15 @@ export type SuccessMessage = z.infer<typeof SuccessMessageSchema>
 
 // User update schema
 export const UpdateUserSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
+  name: z.string().min(1).max(100).optional().describe('User\'s display name (e.g., "Dr. Sarah Johnson", "John Smith")'),
 })
 export type UpdateUser = z.infer<typeof UpdateUserSchema>
 
 // Wallet connection schema
 export const ConnectWalletSchema = z.object({
-  walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid wallet address'),
-  message: z.string().min(1),
-  signature: z.string().regex(/^0x[a-fA-F0-9]{130}$/, 'Invalid signature format')
+  walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum wallet address').describe('Ethereum wallet address to connect to user account (e.g., "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6")'),
+  message: z.string().min(1).describe('Signed message from wallet containing timestamp (User ID optional). Examples: "Connect wallet to HealthDAG\nTimestamp: 1760275088336" or "Welcome to HealthLease Hub!\nUser ID: cmgnok9tf0000j5ra45hzchsr\nTimestamp: 1760275088336"'),
+  signature: z.string().regex(/^0x[a-fA-F0-9]{130}$/, 'Invalid signature format').describe('Cryptographic signature proving wallet ownership (e.g., "0x1234567890abcdef...")')
 })
 export type ConnectWalletDto = z.infer<typeof ConnectWalletSchema>
 

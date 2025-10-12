@@ -16,7 +16,7 @@ const getStudiesRoute = createRoute({
   path: '/studies',
   tags: ['Marketplace'],
   summary: 'Browse research studies',
-  description: 'Browses and filters all active research studies',
+  description: 'Browses and filters all active research studies available for participation',
   security: [{ bearerAuth: [] }],
   responses: {
     200: {
@@ -94,7 +94,7 @@ const getStudyRoute = createRoute({
   path: '/studies/:id',
   tags: ['Marketplace'],
   summary: 'Get study details',
-  description: 'Fetches detailed information for a single research study',
+  description: 'Fetches detailed information for a single research study including requirements, payment, and enrollment status',
   security: [{ bearerAuth: [] }],
   request: {
     params: z.object({
@@ -179,7 +179,7 @@ const applyToStudyRoute = createRoute({
   path: '/studies/:id/apply',
   tags: ['Marketplace'],
   summary: 'Apply to research study',
-  description: 'Enrolls the user in a study, triggering the on-chain data lease and payment',
+  description: 'Enrolls the user in a research study, triggering blockchain data lease creation and payment processing',
   security: [{ bearerAuth: [] }],
   request: {
     params: z.object({
@@ -273,7 +273,7 @@ const getLeaseStatusRoute = createRoute({
   path: '/leases/:id/status',
   tags: ['Marketplace'],
   summary: 'Get lease status',
-  description: 'Retrieves the current status of a data lease',
+  description: 'Retrieves the current status of a data lease (PENDING, CONFIRMED, or FAILED)',
   security: [{ bearerAuth: [] }],
   request: {
     params: z.object({

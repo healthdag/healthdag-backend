@@ -42,7 +42,7 @@ const registerRoute = createRoute({
   path: '/register',
   tags: ['Authentication'],
   summary: 'Register a new user account',
-  description: 'Creates a new user account with email and password',
+  description: 'Creates a new user account with email and password for accessing HealthLease Hub services',
   request: {
     body: {
       content: {
@@ -117,7 +117,7 @@ const loginRoute = createRoute({
   path: '/login',
   tags: ['Authentication'],
   summary: 'Log in a user',
-  description: 'Authenticates a user and returns JWT tokens',
+  description: 'Authenticates a user with email and password, returning JWT access token for API authorization',
   request: {
     body: {
       content: {
@@ -201,7 +201,7 @@ const logoutRoute = createRoute({
   path: '/logout',
   tags: ['Authentication'],
   summary: 'Log out a user',
-  description: 'Invalidates the user session',
+  description: 'Invalidates the user session and JWT token, requiring re-authentication for future requests',
   security: [{ bearerAuth: [] }],
   responses: {
     200: {
