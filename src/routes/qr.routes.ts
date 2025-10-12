@@ -12,8 +12,14 @@ const prisma = new PrismaClient()
 const qrService = new QRService(prisma)
 const qrController = new QRController(qrService)
 
-// * Apply authentication middleware to all QR routes
-app.use('*', requireAuth)
+// * Apply authentication middleware to all QR routes except /access
+app.use('*', async (c, next) => {
+  if (c.req.path === '/access') {
+    // Skip auth for public QR access endpoint
+    return await next()
+  }
+  return await requireAuth(c, next)
+})
 
 // === GENERATE QR CODE ===
 const generateQRCodeRoute = createRoute({

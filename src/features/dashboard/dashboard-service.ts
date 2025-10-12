@@ -118,17 +118,17 @@ export class DashboardService {
         timestamp: Date
       }> = []
 
-      // Get recent documents
+      // Get recent documents (include inactive for activity feed)
       const recentDocuments = await this.prisma.document.findMany({
         where: {
-          userId,
-          isActive: true
+          userId
         },
         select: {
           id: true,
           category: true,
           uploadedAt: true,
-          creationStatus: true
+          creationStatus: true,
+          isActive: true
         },
         orderBy: {
           uploadedAt: 'desc'
@@ -138,10 +138,19 @@ export class DashboardService {
 
       // Add document activities
       recentDocuments.forEach(doc => {
+        let description = ''
+        if (!doc.isActive) {
+          description = `${doc.category.replace('_', ' ').toLowerCase()} document deleted`
+        } else if (doc.creationStatus === 'CONFIRMED') {
+          description = `${doc.category.replace('_', ' ').toLowerCase()} document uploaded successfully`
+        } else {
+          description = `${doc.category.replace('_', ' ').toLowerCase()} document upload in progress`
+        }
+
         activities.push({
           id: `doc_${doc.id}`,
-          type: 'document_uploaded',
-          description: `${doc.category.replace('_', ' ').toLowerCase()} document ${doc.creationStatus === 'CONFIRMED' ? 'uploaded successfully' : 'upload in progress'}`,
+          type: doc.isActive ? 'document_uploaded' : 'document_deleted',
+          description,
           timestamp: doc.uploadedAt
         })
       })
