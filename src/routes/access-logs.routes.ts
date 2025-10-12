@@ -3,6 +3,7 @@ import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { PrismaClient } from '@prisma/client'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
 import { logError } from '../core/utils/error-logger'
+import { requireAuth } from '../core/middleware/auth-middleware'
 
 // * Define the context variables interface
 interface AccessLogsContextVariables {
@@ -24,6 +25,9 @@ try {
   })
   throw error
 }
+
+// * Apply authentication middleware to all access-logs routes
+app.use('*', requireAuth)
 
 // === GET ACCESS LOGS ===
 const getAccessLogsRoute = createRoute({

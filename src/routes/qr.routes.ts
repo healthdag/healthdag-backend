@@ -3,6 +3,7 @@ import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { PrismaClient } from '@prisma/client'
 import { QRService } from '../core/services/qr-service'
 import { QRController } from '../features/qr/qr-controller'
+import { requireAuth } from '../core/middleware/auth-middleware'
 
 const app = new OpenAPIHono()
 
@@ -10,6 +11,9 @@ const app = new OpenAPIHono()
 const prisma = new PrismaClient()
 const qrService = new QRService(prisma)
 const qrController = new QRController(qrService)
+
+// * Apply authentication middleware to all QR routes
+app.use('*', requireAuth)
 
 // === GENERATE QR CODE ===
 const generateQRCodeRoute = createRoute({

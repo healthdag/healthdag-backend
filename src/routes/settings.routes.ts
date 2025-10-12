@@ -7,6 +7,7 @@ import { UpdateUserSchema } from '../core/types/api-schemas'
 import { UserService } from '../core/services/user-service'
 import { createUserController } from '../features/user/user-controller'
 import { logError } from '../core/utils/error-logger'
+import { requireAuth } from '../core/middleware/auth-middleware'
 
 const app = new OpenAPIHono()
 
@@ -29,6 +30,9 @@ try {
   })
   throw error
 }
+
+// * Apply authentication middleware to all settings routes
+app.use('*', requireAuth)
 
 // === GET SETTINGS ===
 const getSettingsRoute = createRoute({

@@ -2,8 +2,12 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
 import { StudyResponseSchema } from '../core/types/api-responses'
+import { requireAuth } from '../core/middleware/auth-middleware'
 
 const app = new OpenAPIHono()
+
+// * Apply authentication middleware to all marketplace routes
+app.use('*', requireAuth)
 
 // === GET STUDIES ===
 const getStudiesRoute = createRoute({

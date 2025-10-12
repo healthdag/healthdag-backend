@@ -2,8 +2,12 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
 import { GenerateQrSchema, RequestAccessSchema } from '../core/types/api-schemas'
+import { requireAuth } from '../core/middleware/auth-middleware'
 
 const app = new OpenAPIHono()
+
+// * Apply authentication middleware to all emergency routes
+app.use('*', requireAuth)
 
 // === GENERATE QR CODE ===
 const generateQrRoute = createRoute({
