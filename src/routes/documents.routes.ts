@@ -3,7 +3,7 @@ import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { PrismaClient } from '@prisma/client'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
 import { DocumentResponseSchema } from '../core/types/api-responses'
-import { UploadDocumentSchema } from '../core/types/api-schemas'
+import { UploadDocumentSchema, RecordCreationStatusEnum } from '../core/types/api-schemas'
 import { DocumentsService } from '../features/documents/documents-service'
 import { DocumentsController } from '../features/documents/documents-controller'
 import { ipfsService } from '../core/services/ipfs-service'
@@ -46,7 +46,7 @@ const uploadDocumentRoute = createRoute({
         'application/json': {
           schema: z.object({
             id: z.string().cuid(),
-            status: z.literal('PENDING'),
+            status: RecordCreationStatusEnum,
           }),
         },
       },
@@ -137,7 +137,7 @@ const getDocumentStatusRoute = createRoute({
       content: {
         'application/json': {
           schema: z.object({
-            status: z.enum(['PENDING', 'CONFIRMED', 'FAILED']),
+            status: RecordCreationStatusEnum,
             ipfsHash: z.string().nullable(),
             onChainId: z.string().nullable(),
           }),

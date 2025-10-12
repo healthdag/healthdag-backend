@@ -125,7 +125,7 @@ export type RequestAccessDto = z.infer<typeof RequestAccessSchema>
 // --- Generic Response Schemas ---
 export const AsyncStatusResponseSchema = z.object({
   id: z.string(),
-  status: z.enum(['PENDING', 'CONFIRMED', 'FAILED']),
+  status: RecordCreationStatusEnum,
 })
 export type AsyncStatusResponse = z.infer<typeof AsyncStatusResponseSchema>
 

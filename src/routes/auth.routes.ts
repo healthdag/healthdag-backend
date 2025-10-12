@@ -7,6 +7,7 @@ import { createAuthController } from '../features/auth/auth-controller'
 import { requireAuth } from '../core/middleware/auth-middleware'
 import { authRateLimit } from '../core/middleware/rate-limit-middleware'
 import { UserCreateInputSchema, LoginCredentialsSchema } from '../core/types/auth-types'
+import { DidCreationStatusEnum } from '../core/types/api-schemas'
 import { logError, logInfo, logSuccess } from '../core/utils/error-logger'
 import type { Context } from 'hono'
 
@@ -139,7 +140,7 @@ const loginRoute = createRoute({
               name: z.string().nullable(),
               walletAddress: z.string().nullable(),
               did: z.string().nullable(),
-              didCreationStatus: z.enum(['NONE', 'PENDING', 'CONFIRMED', 'FAILED']),
+              didCreationStatus: DidCreationStatusEnum,
               createdAt: z.string().datetime(),
               updatedAt: z.string().datetime(),
             }),

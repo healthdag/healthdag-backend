@@ -66,7 +66,7 @@ export class DocumentsService {
         fileName,
         fileSize,
         category,
-        creationStatus: 'PENDING',
+        creationStatus: 'PENDING' as const,
         isActive: true
       }
     })

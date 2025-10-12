@@ -2,6 +2,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
 import { StudyResponseSchema } from '../core/types/api-responses'
+import { RecordCreationStatusEnum } from '../core/types/api-schemas'
 import { requireAuth } from '../core/middleware/auth-middleware'
 
 const app = new OpenAPIHono()

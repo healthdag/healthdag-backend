@@ -189,7 +189,7 @@ export class UserService {
       // * Update user status to PENDING
       const updatedUser = await this.prisma.user.update({
         where: { id: userId },
-        data: { didCreationStatus: 'PENDING' },
+        data: { didCreationStatus: 'PENDING' as const },
         select: {
           id: true,
           email: true,

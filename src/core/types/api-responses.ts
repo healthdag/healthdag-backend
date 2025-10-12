@@ -1,5 +1,6 @@
 // * Complete API Response Type Definitions for HealthLease Hub
 import { z } from 'zod'
+import { DidCreationStatusEnum, RecordCreationStatusEnum, DocumentCategoryEnum } from './api-schemas'
 
 // ====================================================================================
 // 1. REUSABLE CORE SCHEMAS
@@ -19,7 +20,7 @@ export type ErrorResponse = z.infer<typeof ErrorResponseSchema>
 // Used for endpoints that start a background job (e.g., DID creation, document upload).
 export const AsyncAcceptedResponseSchema = z.object({
   id: z.string().cuid().describe('The ID of the resource being processed.'),
-  status: z.enum(['NONE', 'PENDING', 'CONFIRMED', 'FAILED']).describe('The current status of the operation.'),
+  status: DidCreationStatusEnum.describe('The current status of the operation.'),
 })
 export type AsyncAcceptedResponse = z.infer<typeof AsyncAcceptedResponseSchema>
 
@@ -31,7 +32,7 @@ export const UserResponseSchema = z.object({
   name: z.string().nullable(),
   walletAddress: z.string().nullable(),
   did: z.string().nullable(),
-  didCreationStatus: z.enum(['NONE', 'PENDING', 'CONFIRMED', 'FAILED']),
+  didCreationStatus: DidCreationStatusEnum,
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 })
@@ -42,9 +43,9 @@ export const DocumentResponseSchema = z.object({
   id: z.string().cuid(),
   onChainId: z.string().nullable().describe('The on-chain ID (as a string to handle BigInt).'),
   ipfsHash: z.string().nullable(),
-  category: z.enum(['LAB_RESULT', 'IMAGING', 'PRESCRIPTION', 'VISIT_NOTES', 'PROFILE']),
+  category: DocumentCategoryEnum,
   isActive: z.boolean(),
-  creationStatus: z.enum(['PENDING', 'CONFIRMED', 'FAILED']),
+  creationStatus: RecordCreationStatusEnum,
   uploadedAt: z.string().datetime(),
   userId: z.string().cuid(),
 })
@@ -140,7 +141,7 @@ export const apiResponseMap = {
   },
   'GET /api/user/wallet/did/status': {
     200: z.object({
-      status: z.enum(['NONE', 'PENDING', 'CONFIRMED', 'FAILED']),
+      status: DidCreationStatusEnum,
       did: z.string().nullable(),
     }).describe('The current status of DID creation.'),
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
@@ -162,7 +163,7 @@ export const apiResponseMap = {
   },
   'GET /api/documents/:id/status': {
     200: z.object({
-      status: z.enum(['PENDING', 'CONFIRMED', 'FAILED']),
+      status: RecordCreationStatusEnum,
       ipfsHash: z.string().nullable(),
       onChainId: z.string().nullable(),
     }).describe('The current status of the document upload.'),

@@ -8,6 +8,7 @@ import { userRateLimit } from '../core/middleware/rate-limit-middleware'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
 import { UserResponseSchema } from '../core/types/api-responses'
 import { WalletConnectionRequestSchema, UserUpdateInputSchema } from '../core/types/auth-types'
+import { DidCreationStatusEnum } from '../core/types/api-schemas'
 
 // * Define the context variables interface
 interface UserContextVariables {
@@ -207,7 +208,7 @@ const createDidRoute = createRoute({
         'application/json': {
           schema: z.object({
             id: z.string().cuid(),
-            status: z.literal('PENDING'),
+            status: DidCreationStatusEnum,
           }),
         },
       },
@@ -259,7 +260,7 @@ const getDidStatusRoute = createRoute({
       content: {
         'application/json': {
           schema: z.object({
-            status: z.enum(['NONE', 'PENDING', 'CONFIRMED', 'FAILED']),
+            status: DidCreationStatusEnum,
             did: z.string().nullable(),
           }),
         },

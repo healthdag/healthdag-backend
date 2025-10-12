@@ -134,7 +134,7 @@ export class MarketplaceService {
           paymentAmount: study.paymentPerUser,
           startTime: new Date(),
           endTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // * 30 days from now
-          status: 'Pending',
+          status: 'Pending' as const,
           onChainId: BigInt(0) // * Will be updated when blockchain transaction completes
         }
       })

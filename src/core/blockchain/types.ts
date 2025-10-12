@@ -37,21 +37,21 @@ export enum EmergencyAccessLevel {
   CRITICAL = 2
 }
 
-// * Lease Status
+// * Lease Status (matching Prisma schema)
 export enum LeaseStatus {
-  PENDING = 0,
-  ACTIVE = 1,
-  EXPIRED = 2,
-  REVOKED = 3,
-  COMPLETED = 4
+  PENDING = 'Pending',
+  ACTIVE = 'Active',
+  EXPIRED = 'Expired',
+  REVOKED = 'Revoked',
+  COMPLETED = 'Completed'
 }
 
-// * Study Status
+// * Study Status (matching Prisma schema)
 export enum StudyStatus {
-  ACTIVE = 0,
-  PAUSED = 1,
-  CLOSED = 2,
-  CANCELLED = 3
+  ACTIVE = 'Active',
+  PAUSED = 'Paused',
+  CLOSED = 'Closed',
+  CANCELLED = 'Cancelled'
 }
 
 // * Document Categories (must match contract)
