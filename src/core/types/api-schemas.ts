@@ -107,7 +107,7 @@ export const UploadDocumentSchema = z.object({
 export type UploadDocumentDto = z.infer<typeof UploadDocumentSchema>
 
 export const GenerateQrSchema = z.object({
-  dataToInclude: z.array(z.string()).min(1, 'At least one data category must be selected.'),
+  dataToInclude: z.array(z.enum(['allergies', 'medications', 'bloodType', 'conditions', 'emergencyContacts', 'medicalHistory'])).min(1, 'At least one data category must be selected.'),
 })
 export type GenerateQrDto = z.infer<typeof GenerateQrSchema>
 

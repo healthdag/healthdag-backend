@@ -37,6 +37,18 @@ const generateQrRoute = createRoute({
         },
       },
     },
+    400: {
+      description: 'Bad request',
+      content: {
+        'application/json': {
+          schema: z.object({
+            error: z.string(),
+            message: z.string(),
+            details: z.any().optional(),
+          }),
+        },
+      },
+    },
     401: {
       description: 'Unauthorized',
       content: {
@@ -55,17 +67,40 @@ const generateQrRoute = createRoute({
 app.openapi(generateQrRoute, async (c) => {
   try {
     const body = c.req.valid('json')
+    const userId = c.get('userId')
+    
+    if (!userId) {
+      const response = createErrorResponse('POST /api/emergency/qr', 401, 'Unauthorized', 'Missing or invalid JWT')
+      return c.json(response.payload, response.statusCode as any)
+    }
+    
+    // * Validate data categories
+    const validCategories = ['allergies', 'medications', 'bloodType', 'conditions', 'emergencyContacts', 'medicalHistory']
+    const invalidCategories = body.dataToInclude.filter(category => !validCategories.includes(category))
+    
+    if (invalidCategories.length > 0) {
+      const response = createErrorResponse('POST /api/emergency/qr', 400, 'Bad Request', `Invalid data categories: ${invalidCategories.join(', ')}. Valid categories are: ${validCategories.join(', ')}`)
+      return c.json(response.payload, response.statusCode as any)
+    }
     
     // TODO: Implement actual QR generation logic
-    // const qrPayload = await emergencyService.generateQrCode(c.get('user'), body.dataToInclude)
+    // const qrPayload = await emergencyService.generateQrCode(userId, body.dataToInclude)
     
-    // Mock response for now
+    // * Generate mock QR payload with timestamp and user context
+    const timestamp = Date.now()
+    const qrPayload = `emergency_qr_${userId}_${timestamp}_${body.dataToInclude.join('_')}`
+    
     const response = createApiResponse('POST /api/emergency/qr', 200, {
-      qrPayload: 'signed-qr-payload-here-with-data-included',
+      qrPayload,
     })
     
     return c.json(response.payload, response.statusCode as any)
   } catch (error: any) {
+    if (error.name === 'ZodError') {
+      const response = createErrorResponse('POST /api/emergency/qr', 400, 'Bad Request', 'Invalid request body format')
+      return c.json(response.payload, response.statusCode as any)
+    }
+    
     const response = createErrorResponse('POST /api/emergency/qr', 401, 'Unauthorized', 'Missing or invalid JWT')
     return c.json(response.payload, response.statusCode as any)
   }
