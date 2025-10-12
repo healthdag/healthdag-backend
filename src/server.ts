@@ -4,7 +4,6 @@ import { cors } from 'hono/cors'
 // Using Bun's built-in server instead of @hono/node-server
 import { swaggerUI } from '@hono/swagger-ui'
 import { Scalar } from '@scalar/hono-api-reference'
-import { createApiResponse } from './core/services/response-factory'
 import authRoutes from './routes/auth.routes'
 import userRoutes from './routes/user.routes'
 import documentRoutes from './routes/documents.routes'
@@ -19,6 +18,13 @@ import qrRoutes from './routes/qr.routes'
 const app = new OpenAPIHono()
 
 // * Middleware setup
+// * Add request logger at the very top
+app.use('*', async (c, next) => {
+  console.log(`📥 Incoming request: ${c.req.method} ${c.req.path}`)
+  await next()
+  console.log(`📤 Response: ${c.res.status}`)
+})
+
 // * Configure logger based on environment
 const logLevel = process.env.LOG_LEVEL || 'info'
 app.use('*', logger())
@@ -30,18 +36,18 @@ app.onError((err, c) => {
     stack: err.stack,
     path: c.req.path,
     method: c.req.method,
+    error: err,
     timestamp: new Date().toISOString()
   })
-  
-  // Return detailed error in development, generic in production
-  const isDevelopment = process.env.NODE_ENV !== 'production'
-  
+
+  // Always return detailed error for now during testing
   return c.json({
     success: false,
     error: {
       type: 'InternalServerError',
-      message: isDevelopment ? err.message : 'An unexpected error occurred',
-      ...(isDevelopment && { stack: err.stack })
+      message: err.message,
+      stack: err.stack,
+      path: c.req.path
     },
     timestamp: new Date().toISOString()
   }, 500)
@@ -267,13 +273,11 @@ if (process.env.ENABLE_DOCS !== 'false') {
 
 // * Health check endpoint
 app.get('/health', (c) => {
-  const response = createApiResponse('GET /health', 200, {
+  return c.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     service: 'healthlease-hub-backend',
   })
-  
-  return c.json(response.payload, response.statusCode as any)
 })
 
 // * Root endpoint
@@ -310,16 +314,15 @@ app.get('/', (c) => {
 
 // * All endpoints are now handled by their respective route modules
 
-// * Start server
-const port = process.env.PORT || 3000
+// * Export the app for Bun to serve
+const port = Number(process.env.PORT || 3000)
 
 console.log(`🚀 HealthLease server starting on port ${port}`)
-
 console.log(`✅ HealthLease server running on http://localhost:${port}`)
 console.log(`📚 API Documentation: http://localhost:${port}/ui`)
 
-// * Export the Hono app for Bun's built-in server
+// * Export for Bun to serve
 export default {
-  port: Number(port),
+  port,
   fetch: app.fetch,
 }

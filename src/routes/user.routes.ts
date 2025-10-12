@@ -54,9 +54,7 @@ const getUserRoute = createRoute({
 })
 
 app.openapi(getUserRoute, async (c) => {
-  const response = await userController.getCurrentUser(c)
-  const data = await response.json()
-  return c.json(data, response.status as any) as any
+  return await userController.getCurrentUser(c)
 })
 
 // === UPDATE USER PROFILE ===
@@ -113,9 +111,7 @@ const updateUserRoute = createRoute({
 })
 
 app.openapi(updateUserRoute, async (c) => {
-  const response = await userController.updateUser(c)
-  const data = await response.json()
-  return c.json(data, response.status as any) as any
+  return await userController.updateUser(c)
 })
 
 // === CONNECT WALLET ===
@@ -184,9 +180,7 @@ const connectWalletRoute = createRoute({
 })
 
 app.openapi(connectWalletRoute, async (c) => {
-  const response = await userController.connectWallet(c)
-  const data = await response.json()
-  return c.json(data, response.status as any) as any
+  return await userController.connectWallet(c)
 })
 
 // === CREATE DID ===
@@ -237,9 +231,7 @@ const createDidRoute = createRoute({
 })
 
 app.openapi(createDidRoute, async (c) => {
-  const response = await userController.createDid(c)
-  const data = await response.json()
-  return c.json(data, response.status as any) as any
+  return await userController.createDid(c)
 })
 
 // === GET DID STATUS ===
@@ -278,9 +270,7 @@ const getDidStatusRoute = createRoute({
 })
 
 app.openapi(getDidStatusRoute, async (c) => {
-  const response = await userController.getDidStatus(c)
-  const data = await response.json()
-  return c.json(data, response.status as any) as any
+  return await userController.getDidStatus(c)
 })
 
 export default app

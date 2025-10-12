@@ -6,7 +6,7 @@ This folder contains all blockchain interaction services for the HealthLease Hub
 
 The blockchain layer follows a **separation of concerns** pattern:
 
-```
+```txt
 blockchain/
 ├── did-registry-service.ts      # DID Registry contract interactions
 ├── data-lease-service.ts        # Data Lease contract interactions

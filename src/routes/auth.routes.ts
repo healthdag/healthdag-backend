@@ -96,10 +96,8 @@ app.openapi(registerRoute, async (c) => {
     const body = await c.req.json()
     const validated = UserCreateInputSchema.parse(body)
     c.set('validatedBody', validated)
-    
-    const response = await authController.register(c)
-    const data = await response.json()
-    return c.json(data, response.status as any) as any
+
+    return await authController.register(c)
   } catch (error) {
     if (error instanceof z.ZodError) {
       return c.json({ error: 'Validation Error', message: 'Invalid request body', details: error.errors }, 400)
@@ -175,10 +173,8 @@ app.openapi(loginRoute, async (c) => {
     const body = await c.req.json()
     const validated = LoginCredentialsSchema.parse(body)
     c.set('validatedBody', validated)
-    
-    const response = await authController.login(c)
-    const data = await response.json()
-    return c.json(data, response.status as any) as any
+
+    return await authController.login(c)
   } catch (error) {
     if (error instanceof z.ZodError) {
       return c.json({ error: 'Validation Error', message: 'Invalid request body', details: error.errors }, 400)
@@ -221,9 +217,7 @@ const logoutRoute = createRoute({
 })
 
 app.openapi(logoutRoute, async (c) => {
-  const response = await authController.logout(c)
-  const data = await response.json()
-  return c.json(data, response.status as any) as any
+  return await authController.logout(c)
 })
 
 // * OpenAPI documentation is handled by the main server.ts

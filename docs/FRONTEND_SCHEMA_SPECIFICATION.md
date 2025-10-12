@@ -864,7 +864,7 @@ Response: {
 **Required Documents Display:**
 Shows categories needed with user's matching documents:
 
-```
+```txt
 Required: LAB_RESULT
 ☑ Blood Test (Jan 15, 2024)
 ☐ Cholesterol Panel (Dec 10, 2023)
@@ -1713,7 +1713,7 @@ const mediaQueries = {
 
 ## 🚀 Routing Structure
 
-```
+```txt
 /                          → Landing page (public)
 /login                     → Login page
 /register                  → Registration page

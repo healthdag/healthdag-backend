@@ -75,9 +75,7 @@ const uploadDocumentRoute = createRoute({
 })
 
 app.openapi(uploadDocumentRoute, async (c) => {
-  const response = await documentsController.uploadDocument(c)
-  const data = await response.json()
-  return c.json(data, response.status as any) as any
+  return await documentsController.uploadDocument(c)
 })
 
 // === GET DOCUMENTS ===
@@ -113,9 +111,7 @@ const getDocumentsRoute = createRoute({
 })
 
 app.openapi(getDocumentsRoute, async (c) => {
-  const response = await documentsController.getDocuments(c)
-  const data = await response.json()
-  return c.json(data, response.status as any) as any
+  return await documentsController.getDocuments(c)
 })
 
 // === GET DOCUMENT STATUS ===
@@ -172,9 +168,7 @@ const getDocumentStatusRoute = createRoute({
 })
 
 app.openapi(getDocumentStatusRoute, async (c) => {
-  const response = await documentsController.getDocumentStatus(c)
-  const data = await response.json()
-  return c.json(data, response.status as any) as any
+  return await documentsController.getDocumentStatus(c)
 })
 
 // === DELETE DOCUMENT ===
@@ -229,9 +223,7 @@ const deleteDocumentRoute = createRoute({
 })
 
 app.openapi(deleteDocumentRoute, async (c) => {
-  const response = await documentsController.deleteDocument(c)
-  const data = await response.json()
-  return c.json(data, response.status as any) as any
+  return await documentsController.deleteDocument(c)
 })
 
 export default app

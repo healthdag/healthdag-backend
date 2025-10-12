@@ -75,9 +75,7 @@ const generateQRCodeRoute = createRoute({
 })
 
 app.openapi(generateQRCodeRoute, async (c) => {
-  const response = await qrController.generateQRCode(c)
-  const data = await response.json()
-  return c.json(data, response.status as any) as any
+  return await qrController.generateQRCode(c)
 })
 
 // === GET MY QR CODES ===
@@ -120,9 +118,7 @@ const getMyQRCodesRoute = createRoute({
 })
 
 app.openapi(getMyQRCodesRoute, async (c) => {
-  const response = await qrController.getMyQRCodes(c)
-  const data = await response.json()
-  return c.json(data, response.status as any) as any
+  return await qrController.getMyQRCodes(c)
 })
 
 // === REVOKE QR CODE ===
@@ -186,9 +182,7 @@ const revokeQRCodeRoute = createRoute({
 })
 
 app.openapi(revokeQRCodeRoute, async (c) => {
-  const response = await qrController.revokeQRCode(c)
-  const data = await response.json()
-  return c.json(data, response.status as any) as any
+  return await qrController.revokeQRCode(c)
 })
 
 // === REGENERATE QR CODE ===
@@ -263,9 +257,7 @@ const regenerateQRCodeRoute = createRoute({
 })
 
 app.openapi(regenerateQRCodeRoute, async (c) => {
-  const response = await qrController.regenerateQRCode(c)
-  const data = await response.json()
-  return c.json(data, response.status as any) as any
+  return await qrController.regenerateQRCode(c)
 })
 
 // === PROCESS QR ACCESS (PUBLIC) ===
@@ -348,9 +340,7 @@ const processQRAccessRoute = createRoute({
 })
 
 app.openapi(processQRAccessRoute, async (c) => {
-  const response = await qrController.processQRAccess(c)
-  const data = await response.json()
-  return c.json(data, response.status as any) as any
+  return await qrController.processQRAccess(c)
 })
 
 export default app
