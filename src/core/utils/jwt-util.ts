@@ -1,5 +1,5 @@
 // * JWT utility functions for HealthLease Hub authentication
-import jwt from 'jsonwebtoken'
+import * as jwt from 'jsonwebtoken'
 import type { 
   JwtPayload, 
   JwtResult, 
