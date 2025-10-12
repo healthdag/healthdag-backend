@@ -21,6 +21,9 @@ const prisma = new PrismaClient()
 const userService = new UserService(prisma)
 const userController = createUserController(userService)
 
+// * Apply authentication middleware to all user routes
+app.use('*', requireAuth)
+
 // === GET USER PROFILE ===
 const getUserRoute = createRoute({
   method: 'get',

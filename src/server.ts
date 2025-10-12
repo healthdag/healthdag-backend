@@ -18,6 +18,14 @@ import qrRoutes from './routes/qr.routes'
 // * Main Hono application instance with OpenAPI support
 const app = new OpenAPIHono()
 
+// * Register security schemes for OpenAPI documentation
+app.openAPIRegistry.registerComponent('securitySchemes', 'bearerAuth', {
+  type: 'http',
+  scheme: 'bearer',
+  bearerFormat: 'JWT',
+  description: 'JWT token obtained from /api/auth/login endpoint. Include the token in the Authorization header as "Bearer <token>".',
+})
+
 // * Middleware setup
 // * Add request logger at the very top
 app.use('*', async (c, next) => {
