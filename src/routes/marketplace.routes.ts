@@ -192,7 +192,7 @@ const applyToStudyRoute = createRoute({
         'application/json': {
           schema: z.object({
             id: z.string().cuid(),
-            status: z.literal('PENDING'),
+            status: RecordCreationStatusEnum,
           }),
         },
       },
@@ -246,7 +246,7 @@ app.openapi(applyToStudyRoute, async (c) => {
     // Mock response for now
     const response = createApiResponse('POST /api/marketplace/studies/:id/apply', 202, {
       id: 'lease_123',
-      status: 'PENDING',
+      status: 'PENDING' as const,
     })
     
     return c.json(response.payload, response.statusCode as any)
@@ -285,7 +285,7 @@ const getLeaseStatusRoute = createRoute({
       content: {
         'application/json': {
           schema: z.object({
-            status: z.enum(['PENDING', 'CONFIRMED', 'FAILED']),
+            status: RecordCreationStatusEnum,
           }),
         },
       },
