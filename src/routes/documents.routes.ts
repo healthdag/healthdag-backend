@@ -7,6 +7,7 @@ import { UploadDocumentSchema } from '../core/types/api-schemas'
 import { DocumentsService } from '../features/documents/documents-service'
 import { DocumentsController } from '../features/documents/documents-controller'
 import { ipfsService } from '../core/services/ipfs-service'
+import { requireAuth } from '../core/middleware/auth-middleware'
 
 const app = new OpenAPIHono()
 
@@ -14,6 +15,9 @@ const app = new OpenAPIHono()
 const prisma = new PrismaClient()
 const documentsService = new DocumentsService(prisma, ipfsService as any)
 const documentsController = new DocumentsController(documentsService)
+
+// * Apply authentication middleware to all document routes
+app.use('*', requireAuth)
 
 // === UPLOAD DOCUMENT ===
 const uploadDocumentRoute = createRoute({

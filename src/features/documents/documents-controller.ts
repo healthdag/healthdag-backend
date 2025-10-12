@@ -73,6 +73,18 @@ export class DocumentsController {
       return c.json(response.payload, response.statusCode as any)
     } catch (error: any) {
       console.error('Upload document error:', error)
+      
+      // * Handle business logic errors with appropriate status codes
+      if (error.message.includes('DID not created') || error.message.includes('Wallet not connected')) {
+        const response = createErrorResponse(
+          'POST /api/documents',
+          400,
+          'Bad Request',
+          error.message
+        )
+        return c.json(response.payload, response.statusCode as any)
+      }
+      
       const response = createErrorResponse(
         'POST /api/documents',
         500,
