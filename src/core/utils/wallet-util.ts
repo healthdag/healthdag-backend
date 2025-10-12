@@ -15,6 +15,9 @@ import {
 // CONFIGURATION
 // ====================================================================================
 
+// * Wallet message timeout configuration
+const WALLET_MESSAGE_TIMEOUT_MINUTES = parseInt(process.env.WALLET_MESSAGE_TIMEOUT_MINUTES || '15')
+
 // Constants imported from types
 
 // ====================================================================================
@@ -170,12 +173,12 @@ export function parseWalletMessage(message: string): WalletMessage | null {
 }
 
 /**
- * * Validates if a wallet message is recent (within 5 minutes)
+ * * Validates if a wallet message is recent (within configured timeout)
  * @param message - The message to validate
- * @param maxAgeMinutes - Maximum age in minutes (default: 5)
+ * @param maxAgeMinutes - Maximum age in minutes (default: from environment)
  * @returns True if message is recent, false otherwise
  */
-export function isMessageRecent(message: string, maxAgeMinutes: number = 5): boolean {
+export function isMessageRecent(message: string, maxAgeMinutes: number = WALLET_MESSAGE_TIMEOUT_MINUTES): boolean {
   const parsed = parseWalletMessage(message)
   if (!parsed) return false
   
@@ -269,9 +272,11 @@ export function validateWalletConnectionRequest(data: WalletConnectionRequest): 
   
   // Check if message is recent
   if (!isMessageRecent(data.message)) {
+    const parsed = parseWalletMessage(data.message)
+    const ageMinutes = parsed ? Math.floor((Date.now() - parsed.timestamp) / (60 * 1000)) : 0
     return {
       valid: false,
-      error: 'Message is too old, please sign a new message'
+      error: `Message is too old (${ageMinutes} minutes), please sign a new message`
     }
   }
   

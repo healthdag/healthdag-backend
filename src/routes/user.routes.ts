@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client'
 import { UserService } from '../core/services/user-service'
 import { createUserController } from '../features/user/user-controller'
 import { requireAuth } from '../core/middleware/auth-middleware'
+import { userRateLimit } from '../core/middleware/rate-limit-middleware'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
 import { UserSchema } from '../core/types/api-schemas'
 import { WalletConnectionRequestSchema, UserUpdateInputSchema } from '../core/types/auth-types'
@@ -53,32 +54,9 @@ const getUserRoute = createRoute({
 })
 
 app.openapi(getUserRoute, async (c) => {
-  try {
-    // Extract token from Authorization header
-    const authHeader = c.req.header('Authorization')
-    const token = authHeader?.replace('Bearer ', '') || ''
-
-    if (!token) {
-      return c.json({ error: 'Unauthorized', message: 'Missing or invalid authorization header' }, 401)
-    }
-
-    // Verify token using JWT utilities
-    const { verifyToken } = await import('../core/utils/jwt-util')
-    const verification = verifyToken(token)
-    
-    if (!verification.valid || !verification.payload) {
-      return c.json({ error: 'Unauthorized', message: verification.error || 'Invalid or expired token' }, 401)
-    }
-
-    // Set user ID in context
-    c.set('userId', verification.payload.sub)
-    
-    const response = await userController.getCurrentUser(c)
-    const data = await response.json()
-    return c.json(data, response.status as any) as any
-  } catch (error) {
-    return c.json({ error: 'Unauthorized', message: 'Authentication failed' }, 401)
-  }
+  const response = await userController.getCurrentUser(c)
+  const data = await response.json()
+  return c.json(data, response.status as any) as any
 })
 
 // === UPDATE USER PROFILE ===
@@ -135,32 +113,9 @@ const updateUserRoute = createRoute({
 })
 
 app.openapi(updateUserRoute, async (c) => {
-  try {
-    // Extract token from Authorization header
-    const authHeader = c.req.header('Authorization')
-    const token = authHeader?.replace('Bearer ', '') || ''
-
-    if (!token) {
-      return c.json({ error: 'Unauthorized', message: 'Missing or invalid authorization header' }, 401)
-    }
-
-    // Verify token using JWT utilities
-    const { verifyToken } = await import('../core/utils/jwt-util')
-    const verification = verifyToken(token)
-    
-    if (!verification.valid || !verification.payload) {
-      return c.json({ error: 'Unauthorized', message: verification.error || 'Invalid or expired token' }, 401)
-    }
-
-    // Set user ID in context
-    c.set('userId', verification.payload.sub)
-    
-    const response = await userController.updateUser(c)
-    const data = await response.json()
-    return c.json(data, response.status as any) as any
-  } catch (error) {
-    return c.json({ error: 'Unauthorized', message: 'Authentication failed' }, 401)
-  }
+  const response = await userController.updateUser(c)
+  const data = await response.json()
+  return c.json(data, response.status as any) as any
 })
 
 // === CONNECT WALLET ===
@@ -229,32 +184,9 @@ const connectWalletRoute = createRoute({
 })
 
 app.openapi(connectWalletRoute, async (c) => {
-  try {
-    // Extract token from Authorization header
-    const authHeader = c.req.header('Authorization')
-    const token = authHeader?.replace('Bearer ', '') || ''
-
-    if (!token) {
-      return c.json({ error: 'Unauthorized', message: 'Missing or invalid authorization header' }, 401)
-    }
-
-    // Verify token using JWT utilities
-    const { verifyToken } = await import('../core/utils/jwt-util')
-    const verification = verifyToken(token)
-    
-    if (!verification.valid || !verification.payload) {
-      return c.json({ error: 'Unauthorized', message: verification.error || 'Invalid or expired token' }, 401)
-    }
-
-    // Set user ID in context
-    c.set('userId', verification.payload.sub)
-    
-    const response = await userController.connectWallet(c)
-    const data = await response.json()
-    return c.json(data, response.status as any) as any
-  } catch (error) {
-    return c.json({ error: 'Unauthorized', message: 'Authentication failed' }, 401)
-  }
+  const response = await userController.connectWallet(c)
+  const data = await response.json()
+  return c.json(data, response.status as any) as any
 })
 
 // === CREATE DID ===

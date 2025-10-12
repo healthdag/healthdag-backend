@@ -1,6 +1,8 @@
 // * User controller for HealthLease Hub
 import type { Context } from 'hono'
-import { UserService, ConflictError, ValidationError, NotFoundError } from '../../core/services/user-service'
+import { UserService } from '../../core/services/user-service'
+import { ConflictError, ValidationError } from '../../core/services/auth-service'
+import { NotFoundError } from '../../core/services/user-service'
 import { createApiResponse, createErrorResponse } from '../../core/services/response-factory'
 import type { 
   User, 
