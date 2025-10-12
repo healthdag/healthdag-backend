@@ -186,10 +186,10 @@ export class MarketplaceService {
       const study = await this.findStudyById(studyId)
 
       // * Call web3Service to apply to study on blockchain
-      const result = await this.web3Service.applyToStudy(
-        user.walletAddress,
+      const result = await this.web3Service.marketplace.applyToStudy(
+        study.onChainId,
         user.did,
-        study.onChainId
+        [] // TODO: Add document IDs when available
       )
 
       // * Update lease record with on-chain ID and status

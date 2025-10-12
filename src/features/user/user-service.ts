@@ -257,7 +257,7 @@ export class UserService {
       const { ipfsHash } = await this.ipfsService.encryptAndUpload(didDocumentBuffer, encryptionKey)
 
       // * Create DID on blockchain using Web3Service
-      const { did } = await this.web3Service.createDID(user.walletAddress, ipfsHash)
+      const { did } = await this.web3Service.didRegistry.createDID(ipfsHash)
 
       // * Update user record with DID and confirmed status
       await this.prisma.user.update({
