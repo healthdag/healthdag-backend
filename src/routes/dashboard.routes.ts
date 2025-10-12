@@ -1,8 +1,17 @@
 // * Dashboard routes with OpenAPI documentation
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { createApiResponse, createErrorResponse } from '../core/services/response-factory'
+import { DashboardService } from '../features/dashboard/dashboard-service'
+import { prismaService } from '../core/services/prisma-service'
+import { requireAuth, getUserId } from '../core/middleware/auth-middleware'
 
 const app = new OpenAPIHono()
+
+// * Initialize dashboard service
+const dashboardService = new DashboardService(prismaService.prisma)
+
+// * Apply authentication middleware
+app.use('*', requireAuth)
 
 // === GET DASHBOARD STATS ===
 const getStatsRoute = createRoute({
@@ -42,19 +51,22 @@ const getStatsRoute = createRoute({
 
 app.openapi(getStatsRoute, async (c) => {
   try {
-    // TODO: Implement actual dashboard stats logic
-    // const stats = await dashboardService.getUserStats(c.get('user'))
+    // * Get user ID from auth middleware
+    const userId = getUserId(c)
     
-    // Mock response for now
-    const response = createApiResponse('GET /api/dashboard/stats', 200, {
-      documentCount: 5,
-      activeLeases: 2,
-      totalEarned: '250.00',
-    })
+    if (!userId) {
+      const response = createErrorResponse('GET /api/dashboard/stats', 401, 'Unauthorized', 'User not authenticated')
+      return c.json(response.payload, response.statusCode as any)
+    }
+    
+    // * Get dashboard statistics using the service
+    const stats = await dashboardService.getStats(userId)
+    
+    const response = createApiResponse('GET /api/dashboard/stats', 200, stats)
     
     return c.json(response.payload, response.statusCode as any)
   } catch (error: any) {
-    const response = createErrorResponse('GET /api/dashboard/stats', 401, 'Unauthorized', 'Missing or invalid JWT')
+    const response = createErrorResponse('GET /api/dashboard/stats', 401, 'Unauthorized', 'Failed to retrieve dashboard stats')
     return c.json(response.payload, response.statusCode as any)
   }
 })
