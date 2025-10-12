@@ -107,17 +107,17 @@ export const UploadDocumentSchema = z.object({
 export type UploadDocumentDto = z.infer<typeof UploadDocumentSchema>
 
 export const GenerateQrSchema = z.object({
-  dataToInclude: z.array(z.enum(['allergies', 'medications', 'bloodType', 'conditions', 'emergencyContacts', 'medicalHistory'])).min(1, 'At least one data category must be selected.'),
+  dataToInclude: z.array(z.enum(['allergies', 'medications', 'bloodType', 'conditions', 'emergencyContacts', 'medicalHistory'])).min(1, 'At least one data category must be selected.').describe('Medical data categories to include in emergency QR code (e.g., ["allergies", "medications", "bloodType"])'),
 })
 export type GenerateQrDto = z.infer<typeof GenerateQrSchema>
 
 export const RequestAccessSchema = z.object({
-  qrPayload: z.string(),
+  qrPayload: z.string().describe('QR code payload scanned from patient\'s emergency QR code'),
   responderInfo: z.object({
-    name: z.string().min(1),
-    credential: z.string().min(1),
-    location: z.string().min(1),
-    address: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid wallet address')
+    name: z.string().min(1).describe('Full name of the emergency responder (e.g., "Dr. Sarah Johnson")'),
+    credential: z.string().min(1).describe('Professional credentials or license number (e.g., "EMT License #EMT123456", "MD License #MD789012")'),
+    location: z.string().min(1).describe('Organization or facility name (e.g., "City Emergency Services", "St. Mary\'s Hospital")'),
+    address: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum wallet address').describe('Ethereum wallet address for responder verification (e.g., "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6")')
   }),
 })
 export type RequestAccessDto = z.infer<typeof RequestAccessSchema>

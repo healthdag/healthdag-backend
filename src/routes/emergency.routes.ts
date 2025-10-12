@@ -15,7 +15,7 @@ const generateQrRoute = createRoute({
   path: '/qr',
   tags: ['Emergency'],
   summary: 'Generate emergency QR code',
-  description: 'Generates a new, signed QR code payload for emergency access',
+  description: 'Generate a QR code containing emergency medical information for first responders. The QR code can be scanned by emergency personnel to access critical patient data.',
   security: [{ bearerAuth: [] }],
   request: {
     body: {
@@ -112,7 +112,7 @@ const requestAccessRoute = createRoute({
   path: '/access',
   tags: ['Emergency'],
   summary: 'Request emergency access',
-  description: 'Public endpoint for first responders to request access using a scanned QR payload',
+  description: 'Public endpoint for emergency responders to request access to patient medical data using a scanned QR payload. Requires responder verification information.',
   request: {
     body: {
       content: {
