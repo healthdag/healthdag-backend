@@ -1,0 +1,13 @@
+{
+  "network": "awakening",
+  "chainId": 1043,
+  "timestamp": "2025-10-11T16:20:08.087Z",
+  "deployer": "0xcFF3Dd4FaD8919DC2d2101CA0d34a8c12958f8F1",
+  "contracts": {
+    "didRegistry": "0x599DA0AD70492beb6F41FB68371Df0048Ff4592f",
+    "paymentProcessor": "0x5C335809FCBE036Ec5862F706da35c01825c1F3B",
+    "dataLease": "0x05660dC688FaE10BeccBe7195f8F16041Ce6E8B4",
+    "emergencyAccess": "0x2AB757f5E983A4abe3cc24eAFd213002a8Af0690",
+    "marketplace": "0x1006Af1736348d7C60901F379A8D0172BFbF52d1"
+  }
+}

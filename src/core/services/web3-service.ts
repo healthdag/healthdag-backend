@@ -1,32 +1,30 @@
 // * Web3Service - Sole interface with Ethers.js library and smart contracts
 // * No other service should ever import ethers directly
 import { ethers } from 'ethers'
-import { ContractABIs } from '../../exports/contracts.js'
-
-// * Study struct interface for blockchain data
-interface StudyStruct {
-  id: bigint;
-  title: string;
-  description: string;
-  researcher: string;
-  fee: bigint;
-  isActive: boolean;
-  createdAt: bigint;
-  updatedAt: bigint;
-}
+import { ContractABIs } from '../../exports/contracts'
+import { 
+  DIDRegistryService, 
+  DataLeaseService, 
+  EmergencyAccessService, 
+  MarketplaceService, 
+  PaymentProcessorService 
+} from '../blockchain'
 
 // * Singleton Web3Service class
 class Web3Service {
   private static instance: Web3Service
   public readonly provider: ethers.JsonRpcProvider
   public readonly signer: ethers.Wallet
-  public readonly didRegistry: ethers.Contract
-  public readonly dataLease: ethers.Contract
-  public readonly emergencyAccess: ethers.Contract
-  public readonly marketplace: ethers.Contract
-  public readonly paymentProcessor: ethers.Contract
+  
+  // * Blockchain service instances
+  public readonly didRegistry: DIDRegistryService
+  public readonly dataLease: DataLeaseService
+  public readonly emergencyAccess: EmergencyAccessService
+  public readonly marketplace: MarketplaceService
+  public readonly paymentProcessor: PaymentProcessorService
 
   private constructor() {
+    // * Get RPC URL and private key from environment
     const rpcUrl = process.env.RPC_URL
     const privateKey = process.env.PRIVATE_KEY
 
@@ -42,47 +40,79 @@ class Web3Service {
     this.provider = new ethers.JsonRpcProvider(rpcUrl)
     this.signer = new ethers.Wallet(privateKey, this.provider)
 
-    // * Get contract addresses from environment variables
-    const didRegistryAddress = process.env.DID_REGISTRY_ADDRESS
-    const dataLeaseAddress = process.env.DATA_LEASE_ADDRESS
-    const emergencyAccessAddress = process.env.EMERGENCY_ACCESS_ADDRESS
-    const marketplaceAddress = process.env.MARKETPLACE_ADDRESS
-    const paymentProcessorAddress = process.env.PAYMENT_PROCESSOR_ADDRESS
-
-    if (!didRegistryAddress || !dataLeaseAddress || !emergencyAccessAddress || 
-        !marketplaceAddress || !paymentProcessorAddress) {
-      throw new Error('One or more contract addresses not found in environment variables')
-    }
+    // * Get contract addresses (from env vars or deployment file)
+    const addresses = this.getContractAddresses()
 
     // * Initialize contract instances
-    this.didRegistry = new ethers.Contract(
-      didRegistryAddress,
+    const didRegistryContract = new ethers.Contract(
+      addresses.didRegistry,
       ContractABIs.DIDRegistry,
       this.signer
     )
 
-    this.dataLease = new ethers.Contract(
-      dataLeaseAddress,
+    const dataLeaseContract = new ethers.Contract(
+      addresses.dataLease,
       ContractABIs.DataLease,
       this.signer
     )
 
-    this.emergencyAccess = new ethers.Contract(
-      emergencyAccessAddress,
+    const emergencyAccessContract = new ethers.Contract(
+      addresses.emergencyAccess,
       ContractABIs.EmergencyAccess,
       this.signer
     )
 
-    this.marketplace = new ethers.Contract(
-      marketplaceAddress,
+    const marketplaceContract = new ethers.Contract(
+      addresses.marketplace,
       ContractABIs.Marketplace,
       this.signer
     )
 
-    this.paymentProcessor = new ethers.Contract(
-      paymentProcessorAddress,
+    const paymentProcessorContract = new ethers.Contract(
+      addresses.paymentProcessor,
       ContractABIs.PaymentProcessor,
       this.signer
+    )
+
+    // * Initialize blockchain services
+    this.didRegistry = new DIDRegistryService(didRegistryContract)
+    this.dataLease = new DataLeaseService(dataLeaseContract)
+    this.emergencyAccess = new EmergencyAccessService(emergencyAccessContract)
+    this.marketplace = new MarketplaceService(marketplaceContract)
+    this.paymentProcessor = new PaymentProcessorService(paymentProcessorContract)
+  }
+
+  /**
+   * Get contract addresses from environment or deployment file
+   * @private
+   * @returns Contract addresses
+   */
+  private getContractAddresses(): {
+    didRegistry: string
+    dataLease: string
+    emergencyAccess: string
+    marketplace: string
+    paymentProcessor: string
+  } {
+    // Try environment variables first
+    const fromEnv = {
+      didRegistry: process.env.DID_REGISTRY_ADDRESS,
+      dataLease: process.env.DATA_LEASE_ADDRESS,
+      emergencyAccess: process.env.EMERGENCY_ACCESS_ADDRESS,
+      marketplace: process.env.MARKETPLACE_ADDRESS,
+      paymentProcessor: process.env.PAYMENT_PROCESSOR_ADDRESS
+    }
+
+    // If all env vars are set, use them
+    if (Object.values(fromEnv).every(addr => addr)) {
+      return fromEnv as any
+    }
+
+    // Otherwise, throw error (deployment config loader requires fs which doesn't work in all environments)
+    throw new Error(
+      'Contract addresses not found in environment variables. ' +
+      'Please set DID_REGISTRY_ADDRESS, DATA_LEASE_ADDRESS, EMERGENCY_ACCESS_ADDRESS, ' +
+      'MARKETPLACE_ADDRESS, and PAYMENT_PROCESSOR_ADDRESS in your .env file.'
     )
   }
 
@@ -94,231 +124,69 @@ class Web3Service {
   }
 
   // ====================================================================================
-  // PUBLIC METHODS (READ-ONLY)
+  // PUBLIC HELPER METHODS
   // ====================================================================================
 
   /**
-   * Get study details by on-chain ID
-   * @param onChainId - Study ID on blockchain
-   * @returns Study struct data
+   * Get network information
+   * @returns Network information
    */
-  async getStudyDetails(onChainId: bigint): Promise<StudyStruct> {
+  async getNetworkInfo(): Promise<{
+    name: string
+    chainId: number
+    blockNumber: number
+  }> {
     try {
-      const study = await this.marketplace.getStudy(onChainId)
+      const network = await this.provider.getNetwork()
+      const blockNumber = await this.provider.getBlockNumber()
+      
       return {
-        id: study.id,
-        title: study.title,
-        description: study.description,
-        researcher: study.researcher,
-        fee: study.fee,
-        isActive: study.isActive,
-        createdAt: study.createdAt,
-        updatedAt: study.updatedAt
+        name: network.name,
+        chainId: Number(network.chainId),
+        blockNumber
       }
     } catch (error) {
-      throw new Error(`Failed to get study details: ${error}`)
+      throw new Error(`Failed to get network info: ${error}`)
     }
   }
 
   /**
-   * Get all active studies
-   * @returns Array of active study structs
+   * Get signer address
+   * @returns Signer's wallet address
    */
-  async getActiveStudies(): Promise<StudyStruct[]> {
+  getSignerAddress(): string {
+    return this.signer.address
+  }
+
+  /**
+   * Get balance of an address
+   * @param address - Wallet address
+   * @returns Balance in wei
+   */
+  async getBalance(address: string): Promise<bigint> {
     try {
-      const studies = await this.marketplace.getActiveStudies()
-      return studies.map((study: any) => ({
-        id: study.id,
-        title: study.title,
-        description: study.description,
-        researcher: study.researcher,
-        fee: study.fee,
-        isActive: study.isActive,
-        createdAt: study.createdAt,
-        updatedAt: study.updatedAt
-      }))
+      return await this.provider.getBalance(address)
     } catch (error) {
-      throw new Error(`Failed to get active studies: ${error}`)
+      throw new Error(`Failed to get balance: ${error}`)
     }
   }
 
   /**
-   * Check if access grant is valid
-   * @param grantId - Access grant ID
-   * @returns True if grant is valid and active
+   * Format ether amount
+   * @param wei - Amount in wei
+   * @returns Formatted ether string
    */
-  async checkAccessGrant(grantId: bigint): Promise<boolean> {
-    try {
-      const grant = await this.emergencyAccess.getAccessGrant(grantId)
-      return grant.isActive && grant.expiresAt > BigInt(Math.floor(Date.now() / 1000))
-    } catch (error) {
-      throw new Error(`Failed to check access grant: ${error}`)
-    }
-  }
-
-  // ====================================================================================
-  // PUBLIC METHODS (WRITE/TRANSACTIONAL)
-  // ====================================================================================
-
-  /**
-   * Create a new DID for a user
-   * @param ownerAddress - User's wallet address
-   * @param initialDocHash - Initial document hash (IPFS hash)
-   * @returns Created DID string
-   */
-  async createDID(ownerAddress: string, initialDocHash: string): Promise<{ did: string }> {
-    try {
-      const tx = await this.didRegistry.createDID(ownerAddress, initialDocHash)
-      const receipt = await this._waitForTransaction(tx)
-      
-      const didEvent = this._parseEvent(receipt, 'DIDCreated')
-      const did = didEvent.args.did
-
-      return { did }
-    } catch (error) {
-      throw new Error(`Failed to create DID: ${error}`)
-    }
+  formatEther(wei: bigint): string {
+    return ethers.formatEther(wei)
   }
 
   /**
-   * Add a document to a DID
-   * @param didOwnerAddress - DID owner's wallet address
-   * @param ipfsHash - IPFS hash of the document
-   * @param category - Document category
-   * @returns New document ID on-chain
+   * Parse ether amount
+   * @param ether - Ether string
+   * @returns Amount in wei
    */
-  async addDocument(didOwnerAddress: string, ipfsHash: string, category: string): Promise<{ onChainId: bigint }> {
-    try {
-      const tx = await this.dataLease.addDocument(didOwnerAddress, ipfsHash, category)
-      const receipt = await this._waitForTransaction(tx)
-      
-      const documentEvent = this._parseEvent(receipt, 'DocumentAdded')
-      const onChainId = documentEvent.args.documentId
-
-      return { onChainId }
-    } catch (error) {
-      throw new Error(`Failed to add document: ${error}`)
-    }
-  }
-
-  /**
-   * Revoke a document from a DID
-   * @param didOwnerAddress - DID owner's wallet address
-   * @param onChainId - Document ID on-chain
-   * @returns Success status
-   */
-  async revokeDocument(didOwnerAddress: string, onChainId: bigint): Promise<{ success: boolean }> {
-    try {
-      const tx = await this.dataLease.revokeDocument(didOwnerAddress, onChainId)
-      await this._waitForTransaction(tx)
-      
-      return { success: true }
-    } catch (error) {
-      throw new Error(`Failed to revoke document: ${error}`)
-    }
-  }
-
-  /**
-   * Apply to participate in a study
-   * @param didOwnerAddress - DID owner's wallet address
-   * @param did - User's DID
-   * @param studyOnChainId - Study ID on-chain
-   * @returns New lease ID on-chain
-   */
-  async applyToStudy(didOwnerAddress: string, did: string, studyOnChainId: bigint): Promise<{ leaseOnChainId: bigint }> {
-    try {
-      const tx = await this.dataLease.applyToStudy(didOwnerAddress, did, studyOnChainId)
-      const receipt = await this._waitForTransaction(tx)
-      
-      const participantEvent = this._parseEvent(receipt, 'ParticipantApplied')
-      const leaseOnChainId = participantEvent.args.leaseId
-
-      return { leaseOnChainId }
-    } catch (error) {
-      throw new Error(`Failed to apply to study: ${error}`)
-    }
-  }
-
-  /**
-   * Grant emergency access to patient data
-   * @param patientDID - Patient's DID
-   * @param responderInfo - Emergency responder information
-   * @returns Grant ID and expiration timestamp
-   */
-  async grantEmergencyAccess(patientDID: string, responderInfo: any): Promise<{ onChainGrantId: bigint, expiresAt: Date }> {
-    try {
-      const tx = await this.emergencyAccess.grantEmergencyAccess(patientDID, responderInfo)
-      const receipt = await this._waitForTransaction(tx)
-      
-      const accessEvent = this._parseEvent(receipt, 'AccessGranted')
-      const onChainGrantId = accessEvent.args.grantId
-      const expiresAt = new Date(Number(accessEvent.args.expiresAt) * 1000)
-
-      return { onChainGrantId, expiresAt }
-    } catch (error) {
-      throw new Error(`Failed to grant emergency access: ${error}`)
-    }
-  }
-
-  // ====================================================================================
-  // PRIVATE METHODS
-  // ====================================================================================
-
-  /**
-   * Wait for transaction confirmation and return receipt
-   * @param tx - Transaction response
-   * @returns Transaction receipt
-   */
-  private async _waitForTransaction(tx: ethers.TransactionResponse): Promise<ethers.TransactionReceipt> {
-    try {
-      const receipt = await tx.wait()
-      if (!receipt) {
-        throw new Error('Transaction receipt is null')
-      }
-      return receipt
-    } catch (error) {
-      throw new Error(`Transaction failed: ${error}`)
-    }
-  }
-
-  /**
-   * Parse event from transaction receipt logs
-   * @param receipt - Transaction receipt
-   * @param eventName - Name of the event to parse
-   * @returns Parsed event log
-   */
-  private _parseEvent(receipt: ethers.TransactionReceipt, eventName: string): ethers.LogDescription {
-    try {
-      // * Try to find the event in any of the contract interfaces
-      const contracts = [this.didRegistry, this.dataLease, this.emergencyAccess, this.marketplace, this.paymentProcessor]
-      
-      for (const contract of contracts) {
-        try {
-          const event = receipt.logs.find(log => {
-            try {
-              const parsed = contract.interface.parseLog(log)
-              return parsed?.name === eventName
-            } catch {
-              return false
-            }
-          })
-
-          if (event) {
-            const parsed = contract.interface.parseLog(event)
-            if (parsed) {
-              return parsed
-            }
-          }
-        } catch {
-          // * Continue to next contract
-          continue
-        }
-      }
-
-      throw new Error(`Event ${eventName} not found in transaction logs`)
-    } catch (error) {
-      throw new Error(`Failed to parse event ${eventName}: ${error}`)
-    }
+  parseEther(ether: string): bigint {
+    return ethers.parseEther(ether)
   }
 
   /**
@@ -339,3 +207,4 @@ class Web3Service {
 // * Export singleton instance
 export const web3Service = Web3Service.getInstance()
 export default web3Service
+
