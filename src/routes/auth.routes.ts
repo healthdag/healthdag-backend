@@ -214,11 +214,16 @@ app.openapi(logoutRoute, async (c) => {
       return c.json({ error: 'Unauthorized', message: 'Missing or invalid authorization header' }, 401)
     }
 
-    // Verify token (simplified for now)
-    // TODO: Implement proper JWT verification
+    // Verify token using JWT utilities
+    const { verifyToken } = await import('../core/utils/jwt-util')
+    const verification = verifyToken(token)
     
-    // Set user ID in context (mock for now)
-    c.set('userId', 'mock-user-id')
+    if (!verification.valid || !verification.payload) {
+      return c.json({ error: 'Unauthorized', message: verification.error || 'Invalid or expired token' }, 401)
+    }
+
+    // Set user ID in context
+    c.set('userId', verification.payload.sub)
     
     const response = await authController.logout(c)
     const data = await response.json()
