@@ -146,7 +146,7 @@ export function generateAccessToken(userId: string, expiresIn: string = JWT_EXPI
   const payload: JwtPayload = {
     sub: userId,
     iat: Math.floor(Date.now() / 1000),
-    exp: 0, // Will be set by jwt.sign
+    // * Remove exp property - jwt.sign will set it automatically based on expiresIn
     iss: JWT_ISSUER,
     aud: JWT_AUDIENCE
   }

@@ -169,7 +169,12 @@ export class TokenBlacklistService {
   private extractTokenExpiration(token: string): Date {
     try {
       const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString()) as JwtPayload
-      return new Date(payload.exp * 1000)
+      // * Handle optional exp property
+      if (payload.exp) {
+        return new Date(payload.exp * 1000)
+      }
+      // If no exp property, assume it expires in 15 minutes
+      return new Date(Date.now() + 15 * 60 * 1000)
     } catch (error) {
       // If we can't parse the token, assume it expires in 15 minutes
       return new Date(Date.now() + 15 * 60 * 1000)

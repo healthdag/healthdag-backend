@@ -62,7 +62,7 @@ export interface LoginResult {
 export interface JwtPayload {
   sub: string
   iat: number
-  exp: number
+  exp?: number // * Optional - jwt.sign will set this automatically based on expiresIn
   iss: string
   aud: string
 }
