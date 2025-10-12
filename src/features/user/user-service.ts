@@ -254,7 +254,7 @@ export class UserService {
       const didDocumentBuffer = Buffer.from(JSON.stringify(initialDidDocument, null, 2))
       const encryptionKey = Buffer.from(userId.padEnd(32, '0').slice(0, 32)) // * Simple key derivation
       
-      const { ipfsHash } = await this.ipfsService.encryptAndUpload(didDocumentBuffer, encryptionKey)
+      const { ipfsHash } = await this.ipfsService.encryptAndUpload(didDocumentBuffer, userId)
 
       // * Create DID on blockchain using Web3Service
       const { did } = await this.web3Service.didRegistry.createDID(ipfsHash)

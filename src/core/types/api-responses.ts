@@ -151,8 +151,18 @@ export const apiResponseMap = {
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
   },
   'GET /api/documents': {
-    200: z.array(DocumentResponseSchema).describe('A list of the user\'s documents.'),
+    200: z.object({
+      documents: z.array(DocumentResponseSchema.omit({ userId: true }))
+    }).describe('A list of the user\'s documents.'),
     401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to retrieve documents.'),
+  },
+  'GET /api/documents/:id': {
+    200: DocumentResponseSchema.omit({ userId: true }).describe('The requested document.'),
+    400: ErrorResponseSchema.describe('Bad Request: Document ID is required.'),
+    401: ErrorResponseSchema.describe('Unauthorized: Missing or invalid JWT.'),
+    404: ErrorResponseSchema.describe('Not Found: Document not found.'),
+    500: ErrorResponseSchema.describe('Internal Server Error: Failed to retrieve document.'),
   },
   'GET /api/documents/:id/status': {
     200: z.object({

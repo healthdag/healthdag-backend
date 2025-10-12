@@ -196,7 +196,8 @@ export class MarketplaceService {
       await this.prisma.lease.update({
         where: { id: leaseId },
         data: {
-          onChainId: result.leaseOnChainId,
+          onChainId: result.leaseId,
+          
           status: 'Active'
         }
       })
@@ -211,7 +212,7 @@ export class MarketplaceService {
         }
       })
 
-      logger.info('Study application processed successfully', { leaseId, onChainId: result.leaseOnChainId.toString() })
+      logger.info('Study application processed successfully', { leaseId, onChainId: result.leaseId.toString() })
     } catch (error) {
       logger.error('Failed to process study application', { error: error instanceof Error ? error.message : String(error), leaseId, userId, studyId })
 

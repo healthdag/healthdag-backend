@@ -13,6 +13,7 @@ interface QrPayload {
   dataToInclude: string[]
   timestamp: number
   signature: string
+  responderAddress?: string
 }
 
 // * Emergency service class for handling security-critical emergency access
@@ -116,20 +117,25 @@ class EmergencyService {
       const qrPayload = this._verifyQrPayload(dto.qrPayload)
       
       // * Step 2: Call web3Service.grantEmergencyAccess
-      const grantResult = await this.web3Service.grantEmergencyAccess(
+      const grantResult = await this.web3Service.emergencyAccess.grantAccess(
         qrPayload.did,
-        dto.responderInfo
+        qrPayload.responderAddress || '0x0000000000000000000000000000000000000000', // Default responder address
+        dto.responderInfo.name,
+        dto.responderInfo.credential,
+        BigInt(3600), // 1 hour duration
+        1, // FULL access level
+        dto.responderInfo.location
       )
 
       // * Step 3: Create AccessLog in Prisma
       const accessLog = await this.prisma.accessLog.create({
         data: {
-          onChainGrantId: grantResult.onChainGrantId,
+          onChainGrantId: grantResult.grantId,
           responderName: dto.responderInfo.name,
           responderCredential: dto.responderInfo.credential,
           responderLocation: dto.responderInfo.location,
           dataAccessed: qrPayload.dataToInclude,
-          grantExpiresAt: grantResult.expiresAt,
+          grantExpiresAt: new Date(Date.now() + 3600 * 1000), // 1 hour from now
           userId: qrPayload.userId
         }
       })
@@ -164,7 +170,7 @@ class EmergencyService {
           // * Download and decrypt document
           const decryptedData = await this.ipfsService.downloadAndDecrypt(
             document.ipfsHash,
-            encryptionKey
+            qrPayload.userId
           )
 
           // * Parse decrypted data
@@ -195,13 +201,13 @@ class EmergencyService {
         userId: qrPayload.userId,
         responderName: dto.responderInfo.name,
         documentsAccessed: documents.length,
-        grantId: grantResult.onChainGrantId.toString(),
-        expiresAt: grantResult.expiresAt
+        grantId: grantResult.grantId.toString(),
+        expiresAt: new Date(Date.now() + 3600 * 1000) // 1 hour from now
       })
 
       return {
         patientData,
-        expiresAt: grantResult.expiresAt
+        expiresAt: new Date(Date.now() + 3600 * 1000) // 1 hour from now
       }
     } catch (error) {
       logger.error('Failed to grant emergency access', {

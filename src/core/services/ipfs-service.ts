@@ -41,12 +41,15 @@ class IpfsService {
   /**
    * Encrypts the provided data buffer and uploads it to Pinata
    * @param data - Buffer data to encrypt and upload
-   * @param encryptionKey - Buffer containing the encryption key
+   * @param userId - User ID for key derivation
    * @returns Object containing the IPFS hash
    */
-  public async encryptAndUpload(data: Buffer, encryptionKey: Buffer): Promise<{ ipfsHash: string }> {
+  public async encryptAndUpload(data: Buffer, userId: string): Promise<{ ipfsHash: string }> {
     try {
-      // * Encrypt the data using the provided key
+      // * Derive user-specific encryption key
+      const encryptionKey = this._deriveUserKey(userId)
+      
+      // * Encrypt the data using the derived key
       const encryptedData = this._encrypt(data, encryptionKey)
       
       // * Convert encrypted buffer to File object for Pinata SDK
@@ -72,10 +75,10 @@ class IpfsService {
   /**
    * Downloads a file from IPFS and decrypts it
    * @param ipfsHash - IPFS hash (CID) of the encrypted file
-   * @param encryptionKey - Buffer containing the decryption key
+   * @param userId - User ID for key derivation
    * @returns Decrypted buffer data
    */
-  public async downloadAndDecrypt(ipfsHash: string, encryptionKey: Buffer): Promise<Buffer> {
+  public async downloadAndDecrypt(ipfsHash: string, userId: string): Promise<Buffer> {
     try {
       // * Download the encrypted file from IPFS
       const gatewayUrl = process.env.PINATA_GATEWAY_URL || 'https://gateway.pinata.cloud'
@@ -88,8 +91,11 @@ class IpfsService {
       // * Convert response to buffer
       const encryptedBuffer = Buffer.from(await response.arrayBuffer())
       
-      // * Decrypt the data using the provided key
-      const decryptedData = this._decrypt(encryptedBuffer, encryptionKey)
+      // * Derive user-specific decryption key
+      const decryptionKey = this._deriveUserKey(userId)
+      
+      // * Decrypt the data using the derived key
+      const decryptedData = this._decrypt(encryptedBuffer, decryptionKey)
       
       return decryptedData
     } catch (error) {

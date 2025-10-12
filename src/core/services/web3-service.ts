@@ -190,6 +190,32 @@ class Web3Service {
   }
 
   /**
+   * Add a document to user's DID
+   * @param userDID - User's DID
+   * @param ipfsHash - IPFS hash of the document
+   * @param category - Document category
+   * @returns Document ID
+   */
+  async addDocument(
+    userDID: string, 
+    ipfsHash: string, 
+    category: string
+  ): Promise<{ documentId: bigint; receipt: any }> {
+    try {
+      // * Use DIDRegistryService to add document
+      const result = await this.didRegistry.addDocument(
+        ipfsHash, 
+        category, 
+        'AES-256-CBC' // Standard encryption method
+      )
+      
+      return result
+    } catch (error) {
+      throw new Error(`Failed to add document to blockchain: ${error}`)
+    }
+  }
+
+  /**
    * Health check for Web3 service
    * @returns True if service is healthy
    */
