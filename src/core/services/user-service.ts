@@ -206,6 +206,7 @@ export class UserService {
       where: { walletAddress: normalizedAddress }
     })
 
+
     if (existingWalletUser && existingWalletUser.id !== userId) {
       throw new ConflictError('This wallet is already connected to another account')
     }

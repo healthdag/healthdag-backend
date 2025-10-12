@@ -31,7 +31,14 @@ const WALLET_MESSAGE_TIMEOUT_MINUTES = parseInt(process.env.WALLET_MESSAGE_TIMEO
  */
 export function isValidAddress(address: string): boolean {
   try {
-    return ethers.isAddress(address)
+    // * Check if it's a valid address format (including lowercase)
+    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+      return false
+    }
+    
+    // * Try to normalize it - this will work for valid addresses regardless of case
+    ethers.getAddress(address.toLowerCase())
+    return true
   } catch {
     return false
   }
@@ -44,6 +51,12 @@ export function isValidAddress(address: string): boolean {
  */
 export function normalizeAddress(address: string): string {
   try {
+    // * First validate the address format
+    if (!ethers.isAddress(address)) {
+      throw new Error('Invalid address format')
+    }
+    
+    // * Convert to checksum format
     return ethers.getAddress(address)
   } catch (error) {
     throw new Error(`Invalid address format: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -158,14 +171,18 @@ export function parseWalletMessage(message: string): WalletMessage | null {
     const timestampMatch = message.match(/Timestamp:\s*(\d+)/)
     const userIdMatch = message.match(/User ID:\s*([^\n]+)/)
     
-    if (!timestampMatch || !userIdMatch) {
+    // * Allow messages with just timestamp (for simpler wallet connection)
+    if (!timestampMatch) {
       return null
     }
+    
+    // * If no User ID found, use a placeholder or extract from context
+    const userId = userIdMatch ? userIdMatch[1].trim() : 'unknown'
     
     return {
       message,
       timestamp: parseInt(timestampMatch[1]),
-      userId: userIdMatch[1].trim()
+      userId
     }
   } catch {
     return null
