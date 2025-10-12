@@ -50,7 +50,7 @@ app.openapi(getStudiesRoute, async (c) => {
     // Mock response for now
     const response = createApiResponse('GET /api/marketplace/studies', 200, [
       {
-        id: 'study_123',
+        id: 'cmgnp1ahz0000ly8mao5vs7vh',
         onChainId: '987654321',
         title: 'Cardiovascular Health Study',
         description: 'A comprehensive study on cardiovascular health patterns and risk factors.',
@@ -65,7 +65,7 @@ app.openapi(getStudiesRoute, async (c) => {
         irbApprovalHash: 'QmIRB123...',
       },
       {
-        id: 'study_456',
+        id: 'cmgnp1ahz0000ly8mao5vs7vi',
         onChainId: '123456789',
         title: 'Diabetes Management Research',
         description: 'Research on effective diabetes management strategies and outcomes.',
@@ -146,7 +146,7 @@ app.openapi(getStudyRoute, async (c) => {
     
     // Mock response for now
     const response = createApiResponse('GET /api/marketplace/studies/:id', 200, {
-      id: 'study_123',
+      id: 'cmgnp1ahz0000ly8mao5vs7vh',
       onChainId: '987654321',
       title: 'Cardiovascular Health Study',
       description: 'A comprehensive study on cardiovascular health patterns and risk factors. This study aims to understand the relationship between lifestyle factors and cardiovascular health outcomes.',
@@ -246,7 +246,7 @@ app.openapi(applyToStudyRoute, async (c) => {
     
     // Mock response for now
     const response = createApiResponse('POST /api/marketplace/studies/:id/apply', 202, {
-      id: 'lease_123',
+      id: 'cmgnp1ahz0000ly8mao5vs7vk',
       status: 'PENDING' as const,
     })
     
