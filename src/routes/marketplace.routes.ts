@@ -4,6 +4,7 @@ import { createApiResponse, createErrorResponse } from '../core/services/respons
 import { StudyResponseSchema } from '../core/types/api-responses'
 import { RecordCreationStatusEnum } from '../core/types/api-schemas'
 import { requireAuth } from '../core/middleware/auth-middleware'
+import { marketplaceService } from '../features/marketplace/marketplace-service'
 
 const app = new OpenAPIHono()
 
@@ -44,46 +45,30 @@ const getStudiesRoute = createRoute({
 
 app.openapi(getStudiesRoute, async (c) => {
   try {
-    // TODO: Implement actual studies retrieval logic
-    // const studies = await marketplaceService.getActiveStudies()
+    // * Get studies from database using marketplace service
+    const studies = await marketplaceService.findAllStudies()
     
-    // Mock response for now
-    const response = createApiResponse('GET /api/marketplace/studies', 200, [
-      {
-        id: 'cmgnp1ahz0000ly8mao5vs7vh',
-        onChainId: '987654321',
-        title: 'Cardiovascular Health Study',
-        description: 'A comprehensive study on cardiovascular health patterns and risk factors.',
-        researcherAddress: '0x9876...5432',
-        paymentPerUser: '100.00',
-        participantsNeeded: 100,
-        participantsEnrolled: 45,
-        status: 'Active',
-        createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z',
-        metadataHash: 'QmMetadata123...',
-        irbApprovalHash: 'QmIRB123...',
-      },
-      {
-        id: 'cmgnp1ahz0000ly8mao5vs7vi',
-        onChainId: '123456789',
-        title: 'Diabetes Management Research',
-        description: 'Research on effective diabetes management strategies and outcomes.',
-        researcherAddress: '0x5432...9876',
-        paymentPerUser: '75.00',
-        participantsNeeded: 50,
-        participantsEnrolled: 30,
-        status: 'Active',
-        createdAt: '2024-01-02T00:00:00.000Z',
-        updatedAt: '2024-01-02T00:00:00.000Z',
-        metadataHash: 'QmMetadata456...',
-        irbApprovalHash: 'QmIRB456...',
-      },
-    ])
+    // * Transform studies to match API response format
+    const transformedStudies = studies.map(study => ({
+      id: study.id,
+      onChainId: study.onChainId.toString(),
+      title: study.title,
+      description: study.description,
+      researcherAddress: study.researcherAddress,
+      paymentPerUser: study.paymentPerUser.toString(),
+      participantsNeeded: study.participantsNeeded,
+      participantsEnrolled: study.participantsEnrolled,
+      status: study.status,
+      createdAt: study.createdAt.toISOString(),
+      updatedAt: study.updatedAt.toISOString(),
+      metadataHash: study.metadataHash,
+      irbApprovalHash: study.irbApprovalHash
+    }))
     
+    const response = createApiResponse('GET /api/marketplace/studies', 200, transformedStudies)
     return c.json(response.payload, response.statusCode as any)
   } catch (error: any) {
-    const response = createErrorResponse('GET /api/marketplace/studies', 401, 'Unauthorized', 'Missing or invalid JWT')
+    const response = createErrorResponse('GET /api/marketplace/studies', 500, 'Internal Server Error', 'Failed to retrieve studies')
     return c.json(response.payload, response.statusCode as any)
   }
 })

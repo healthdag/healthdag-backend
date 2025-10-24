@@ -233,6 +233,51 @@ describe('3. User Management Endpoints', () => {
     console.log('✅ Wallet connection endpoint exists')
     console.log(`   Status: ${response.status}`)
   })
+
+  test('GET /api/user/leases - Get user leases', async () => {
+    const response = await apiRequest('/api/user/leases')
+    expect(response.status).toBe(200)
+
+    const data = await response.json()
+    expect(data.leases).toBeDefined()
+    expect(Array.isArray(data.leases)).toBe(true)
+
+    // * Check lease structure
+    if (data.leases.length > 0) {
+      const lease = data.leases[0]
+      expect(lease.id).toBeDefined()
+      expect(lease.onChainId).toBeDefined()
+      expect(lease.paymentAmount).toBeDefined()
+      expect(lease.status).toBeDefined()
+      expect(lease.study).toBeDefined()
+      expect(lease.isActive).toBeDefined()
+      expect(lease.isExpired).toBeDefined()
+      expect(lease.daysRemaining).toBeDefined()
+      expect(lease.totalDuration).toBeDefined()
+      
+      // * Check study structure
+      expect(lease.study.id).toBeDefined()
+      expect(lease.study.title).toBeDefined()
+      expect(lease.study.description).toBeDefined()
+      expect(lease.study.researcherAddress).toBeDefined()
+      expect(lease.study.paymentPerUser).toBeDefined()
+      expect(lease.study.status).toBeDefined()
+    }
+
+    console.log('✅ User leases endpoint working')
+    console.log(`   Leases found: ${data.leases.length}`)
+    
+    // * Show lease status breakdown
+    const statusCounts = data.leases.reduce((acc: any, lease: any) => {
+      acc[lease.status] = (acc[lease.status] || 0) + 1
+      return acc
+    }, {})
+    
+    console.log('   Status breakdown:')
+    Object.entries(statusCounts).forEach(([status, count]) => {
+      console.log(`     - ${status}: ${count}`)
+    })
+  })
 })
 
 // ============================================================================
