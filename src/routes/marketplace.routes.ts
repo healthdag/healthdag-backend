@@ -68,7 +68,7 @@ app.openapi(getStudiesRoute, async (c) => {
     const response = createApiResponse('GET /api/marketplace/studies', 200, transformedStudies)
     return c.json(response.payload, response.statusCode as any)
   } catch (error: any) {
-    const response = createErrorResponse('GET /api/marketplace/studies', 500, 'Internal Server Error', 'Failed to retrieve studies')
+    const response = createErrorResponse('GET /api/marketplace/studies', 401, 'Unauthorized', 'Failed to retrieve studies')
     return c.json(response.payload, response.statusCode as any)
   }
 })

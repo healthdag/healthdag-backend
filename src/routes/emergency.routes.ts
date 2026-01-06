@@ -4,7 +4,7 @@ import { createApiResponse, createErrorResponse } from '../core/services/respons
 import { GenerateQrSchema, RequestAccessSchema } from '../core/types/api-schemas'
 import { requireAuth } from '../core/middleware/auth-middleware'
 
-const app = new OpenAPIHono()
+const app = new OpenAPIHono<{ Variables: { userId?: string } }>()
 
 // * Apply authentication middleware to all emergency routes
 app.use('*', requireAuth)
@@ -67,7 +67,7 @@ const generateQrRoute = createRoute({
 app.openapi(generateQrRoute, async (c) => {
   try {
     const body = c.req.valid('json')
-    const userId = c.get('userId')
+    const userId = c.get('userId') as string
     
     if (!userId) {
       const response = createErrorResponse('POST /api/emergency/qr', 401, 'Unauthorized', 'Missing or invalid JWT')

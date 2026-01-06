@@ -104,7 +104,7 @@ app.openapi(registerRoute, async (c) => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       logError('AUTH_ROUTES', error, { operation: 'register-validation', errors: error.errors })
-      return c.json({ error: 'Validation Error', message: 'Invalid request body', details: error.errors }, 400)
+      return c.json({ error: 'Validation Error', details: error.errors }, 400)
     }
     logError('AUTH_ROUTES', error, { operation: 'register' })
     throw error
@@ -188,7 +188,7 @@ app.openapi(loginRoute, async (c) => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       logError('AUTH_ROUTES', error, { operation: 'login-validation', errors: error.errors })
-      return c.json({ error: 'Validation Error', message: 'Invalid request body', details: error.errors }, 400)
+      return c.json({ error: 'Validation Error', details: error.errors }, 400)
     }
     logError('AUTH_ROUTES', error, { operation: 'login' })
     throw error
